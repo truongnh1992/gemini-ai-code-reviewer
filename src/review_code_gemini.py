@@ -1,21 +1,18 @@
 import os
 import json
 from typing import List, Dict
-
-from google.ai import generativelanguage as glm
-from google.generativeai import client
+import google.generativeai as client
 from github import Github
 from unidiff import PatchSet
 from wcmatch import wcmatch
 
 # Get input values from environment variables
-GH_TOKEN = os.environ["GH_TOKEN"]
-GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]  # Replace with your Google API key
+GITHUB_TOKEN = os.environ.get('GH_TOKEN')
 GEMINI_MODEL_NAME = "models/code-bison-001"  # Or another Gemini model
 
 # Initialize GitHub and Gemini clients
-gh = Github(GH_TOKEN)
-glm_client = client.GenerativeServiceClient.from_api_key(api_key=GOOGLE_API_KEY)
+gh = Github(GITHUB_TOKEN)
+glm_client = client.configure(api_key=os.environ["GOOGLE_API_KEY"])
 
 
 def get_pr_details() -> Dict:
@@ -24,8 +21,13 @@ def get_pr_details() -> Dict:
     with open(event_path, "r") as f:
         event_data = json.load(f)
 
+    print(f"Raw event data: {event_data}") # Print the raw data
+
     repo_name = event_data["repository"]["full_name"]
     pr_number = event_data["number"]
+
+    print(f"Repository name: {repo_name}") # Print repo_name
+    print(f"PR number: {pr_number}") # Print pr_number
     repo = gh.get_repo(repo_name)
     pr = repo.get_pull(pr_number)
 
@@ -92,7 +94,7 @@ def get_gemini_response(prompt: str) -> List[Dict[str, str]] | None:
     try:
         response = glm_client.generate_text(
             model=GEMINI_MODEL_NAME,
-            prompt=glm.TextPrompt(text=prompt),
+            prompt=client.TextPrompt(text=prompt),
             temperature=0.2,
             max_output_tokens=700,
             top_p=1.0,

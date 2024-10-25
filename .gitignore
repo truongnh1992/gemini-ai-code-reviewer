@@ -4,3 +4,4 @@ lib/**/*
 **/environment/
 **/.env
 **/env
+**/venv

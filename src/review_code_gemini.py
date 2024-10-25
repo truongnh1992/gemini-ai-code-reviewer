@@ -11,7 +11,7 @@ GEMINI_MODEL_NAME = "models/code-bison-001"  # Or another Gemini model
 
 # Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)
-glm_client = client.configure(api_key=os.environ["GEMINI_API_KEY"])
+glm_client = client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 
 def get_pr_details() -> Dict:

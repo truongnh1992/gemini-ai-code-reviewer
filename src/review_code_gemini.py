@@ -11,7 +11,7 @@ GEMINI_MODEL_NAME = "models/code-bison-001"  # Or another Gemini model
 
 # Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)
-glm_client = client.configure(api_key=os.environ["GOOGLE_API_KEY"])
+glm_client = client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 
 def get_pr_details() -> Dict:
@@ -141,6 +141,7 @@ def create_review_comment(pr_details: Dict, comments: List[Dict[str, str]]):
 
 def main():
     """Main function to run the code review process."""
+    print("This is main function")
     pr_details = get_pr_details()
     diff = get_diff(pr_details)
 

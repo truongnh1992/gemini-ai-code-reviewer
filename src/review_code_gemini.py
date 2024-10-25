@@ -3,20 +3,19 @@ import json
 from typing import List, Dict
 
 from google.ai import generativelanguage as glm
+from google.generativeai import client
 from github import Github
 from unidiff import PatchSet
 from wcmatch import wcmatch
 
 # Get input values from environment variables
-GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GH_TOKEN = os.environ["GH_TOKEN"]
 GOOGLE_API_KEY = os.environ["GOOGLE_API_KEY"]  # Replace with your Google API key
 GEMINI_MODEL_NAME = "models/code-bison-001"  # Or another Gemini model
 
 # Initialize GitHub and Gemini clients
-gh = Github(GITHUB_TOKEN)
-glm_client = glm.GenerativeLanguageServiceClient(
-    credentials=glm.Credentials(api_key=GOOGLE_API_KEY)
-)
+gh = Github(GH_TOKEN)
+glm_client = client.GenerativeServiceClient.from_api_key(api_key=GOOGLE_API_KEY)
 
 
 def get_pr_details() -> Dict:

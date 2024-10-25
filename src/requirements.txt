@@ -3,4 +3,3 @@ google-generativeai
 PyGitHub
 github3.py==1.3.0
 wcmatch
-difflib

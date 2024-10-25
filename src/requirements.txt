@@ -1,0 +1,4 @@
+google-ai-generativelanguage==0.1.0 
+github3.py==1.3.0
+unidiff
+wcmatch

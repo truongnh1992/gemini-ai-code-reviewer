@@ -2,7 +2,7 @@ name: Gemini AI Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, reopened, synchronize]
 
 jobs:
   review:
@@ -13,7 +13,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9' 
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
@@ -22,7 +22,7 @@ jobs:
 
       - name: Run AI Code Reviewer
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
-          python src/review_code_gemini.py
+          python3.10 src/review_code_gemini.py

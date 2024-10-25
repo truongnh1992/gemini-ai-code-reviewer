@@ -3,7 +3,7 @@ name: Gemini AI Code Review
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-
+permissions: write-all
 jobs:
   review:
     runs-on: ubuntu-latest

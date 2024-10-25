@@ -139,6 +139,7 @@ def create_review_comment(pr_details: Dict, comments: List[Dict[str, str]]):
 
 def main():
     """Main function to run the code review process."""
+    print("This is main function")
     pr_details = get_pr_details()
     diff = get_diff(pr_details)
 

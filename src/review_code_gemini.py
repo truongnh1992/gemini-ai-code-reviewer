@@ -109,7 +109,7 @@ def get_gemini_response(prompt: str) -> List[Dict[str, str]] | None:
 def create_comment(
     file, chunk, ai_responses: List[Dict[str, str]]
 ) -> List[Dict[str, str]]:
-    """Creates comments for the GitHub PR."""
+    """Creates comments forr the GitHub PR."""
     comments = []
     for ai_response in ai_responses:
         try:

@@ -3,8 +3,7 @@ import json
 from typing import List, Dict
 import google.generativeai as client
 from github import Github
-from unidiff import PatchSet
-from wcmatch import wcmatch
+from difflib import unified_diff
 
 # Get input values from environment variables
 GITHUB_TOKEN = os.environ.get('GH_TOKEN')
@@ -48,27 +47,30 @@ def get_diff(pr_details: Dict) -> str:
 
 
 def analyze_code(
-    parsed_diff: List, pr_details: Dict
+    diff: str, pr_details: Dict
 ) -> List[Dict[str, str]]:
     """Analyzes the code diff using Gemini and generates review comments."""
     comments = []
+    diff_lines = diff.splitlines()
 
-    for file in parsed_diff:
-        if file.to == "/dev/null":
-            continue  # Ignore deleted files
-        for chunk in file.chunks:
-            prompt = create_prompt(file, chunk, pr_details)
-            ai_response = get_gemini_response(prompt)
-            if ai_response:
-                new_comments = create_comment(file, chunk, ai_response)
-                if new_comments:
-                    comments.extend(new_comments)
+    # Extract changed lines for analysis
+    changed_lines = []
+    for line in diff_lines:
+        if line.startswith('+') or line.startswith('-'):
+            changed_lines.append(line)
+
+    if not changed_lines:
+        return comments
+
+    prompt = create_prompt("\n".join(changed_lines), pr_details)
+    ai_response = get_gemini_response(prompt)
+    if ai_response:
+        comments = create_comment(diff_lines, ai_response)
     return comments
 
 
-def create_prompt(file, chunk, pr_details: Dict) -> str:
+def create_prompt(diff: str, pr_details: Dict) -> str:
     """Creates the prompt for the Gemini model."""
-    # You might need to adjust the prompt slightly for Gemini
     return f"""Your task is to review pull requests. Instructions:
 - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
 - Do not give positive comments or compliments.
@@ -77,7 +79,7 @@ def create_prompt(file, chunk, pr_details: Dict) -> str:
 - Use the given description only for the overall context and only comment the code.
 - IMPORTANT: NEVER suggest adding comments to the code.
 
-Review the following code diff in the file "{file.to}" and take the pull request title and description into account when writing the response.
+Review the following code diff and take the pull request title and description into account when writing the response.
 
 Pull request title: {pr_details['title']}
 Pull request description:
@@ -86,7 +88,7 @@ Pull request description:
 {pr_details['description']}
 ---
 Git diff to review:
-{chunk.content}"""
+{diff}"""
 
 
 def get_gemini_response(prompt: str) -> List[Dict[str, str]] | None:
@@ -107,23 +109,21 @@ def get_gemini_response(prompt: str) -> List[Dict[str, str]] | None:
 
 
 def create_comment(
-    file, chunk, ai_responses: List[Dict[str, str]]
+    diff_lines: List[str], ai_responses: List[Dict[str, str]]
 ) -> List[Dict[str, str]]:
-    """Creates comments forr the GitHub PR."""
+    """Creates comments for the GitHub PR."""
     comments = []
     for ai_response in ai_responses:
         try:
             line_number = int(ai_response["lineNumber"])
-            # Adjust line number based on diff chunk
-            for change in chunk.changes:
-                if change.add and change.line_number:
-                    if line_number >= change.line_number:
-                        line_number += chunk.new_start - 1
-                        break
+            # Adjust line number for added lines
+            for i, line in enumerate(diff_lines):
+                if line.startswith('+') and i < line_number:
+                    line_number += 1
             comments.append(
                 {
                     "body": ai_response["reviewComment"],
-                    "path": file.to,
+                    "path": "src/review_code_gemini.py",  # Replace with actual file path
                     "line": line_number,
                 }
             )
@@ -148,18 +148,7 @@ def main():
         print("No diff found")
         return
 
-    parsed_diff = PatchSet(diff)  # Use unidiff
-
-    exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
-    exclude_patterns = [p.strip() for p in exclude_patterns if p.strip()]
-
-    filtered_diff = [
-        file
-        for file in parsed_diff
-        if not any(wcmatch.fnmatch(file.path, p) for p in exclude_patterns)  # Use wcmatch
-    ]
-
-    comments = analyze_code(filtered_diff, pr_details)
+    comments = analyze_code(diff, pr_details)
     if comments:
         create_review_comment(pr_details, comments)
 

@@ -5,7 +5,7 @@ import google.generativeai as Client
 from github import Github
 import difflib
 import fnmatch
-from unidiff import Hunk, PatchedFile
+from unidiff import Hunk, PatchedFile, PatchSet
 
 # Get input values from environment variables (GitHub Actions)
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
@@ -149,6 +149,11 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     pr.create_review(comments=comments, event="COMMENT")
+
+def parse_diff(diff_str: str) -> List[PatchedFile]:
+    """Parses the diff string and returns a list of PatchedFile objects."""
+    patch_set = PatchSet(diff_str)
+    return list(patch_set)
 
 def main():
     """Main function to execute the code review process."""

@@ -69,17 +69,20 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     return diff
 
 
-def analyze_code(parsed_diff: List[PatchedFile], pr_details: PRDetails) -> List[Dict[str, Any]]:
+def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
     """Analyzes the code changes using Gemini and generates review comments."""
     comments = []
-    for file in parsed_diff:
-        if file.path == "/dev/null":  # Use file.path here
+    for file_data in parsed_diff:
+        file_path = file_data["path"]
+        if file_path == "/dev/null":
             continue  # Ignore deleted files
-        for hunk in file.hunks:
-            prompt = create_prompt(file, hunk, pr_details)
+        for hunk_data in file_data["hunks"]:
+            hunk_content = "\n".join(hunk_data["lines"])
+            prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
             ai_response = get_ai_response(prompt)
             if ai_response:
-                new_comments = create_comment(file, hunk, ai_response)
+                # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
+                new_comments = create_comment(file_path, hunk_data, ai_response)
                 if new_comments:
                     comments.extend(new_comments)
     return comments

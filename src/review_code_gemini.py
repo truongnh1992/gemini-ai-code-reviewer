@@ -73,7 +73,7 @@ def analyze_code(parsed_diff: List[PatchedFile], pr_details: PRDetails) -> List[
     """Analyzes the code changes using Gemini and generates review comments."""
     comments = []
     for file in parsed_diff:
-        if file.to == "/dev/null":
+        if file.path == "/dev/null":  # Use file.path here
             continue  # Ignore deleted files
         for hunk in file.hunks:
             prompt = create_prompt(file, hunk, pr_details)
@@ -132,7 +132,7 @@ def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, s
     return [
         {
             "body": ai_response["reviewComment"],
-            "path": file.to,
+            "path": file.path,
             "line": int(ai_response["lineNumber"]),
         }
 for ai_response in ai_responses

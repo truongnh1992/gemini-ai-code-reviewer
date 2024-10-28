@@ -132,15 +132,20 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 
 def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
-    return [
-        {
-            "body": ai_response["reviewComment"],
-            "path": file.path,
-            "line": int(ai_response["lineNumber"]),
-        }
-for ai_response in ai_responses
-if file.path
-]
+    comments = []
+    for ai_response in ai_responses:
+        if ai_response is None:  # Explicitly check for None
+            continue  # Skip this ai_response if it's None
+
+        try:
+            comments.append({
+                "body": ai_response["reviewComment"],
+                "path": file.path,
+                "line": int(ai_response["lineNumber"]),
+            })
+        except (KeyError, TypeError) as e:
+            print(f"Error creating comment from AI response: {e}, Response: {ai_response}")
+    return comments
 
 def create_review_comment(
     owner: str,

@@ -95,7 +95,7 @@ def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     - Use the given description only for the overall context and only comment the code.
     - IMPORTANT: NEVER suggest adding comments to the code.
 
-Review the following code diff in the file "{file.to}" and take the pull request title and description into account when writing the response.
+Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
   
 Pull request title: {pr_details.title}
 Pull request description:
@@ -136,7 +136,7 @@ def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, s
             "line": int(ai_response["lineNumber"]),
         }
 for ai_response in ai_responses
-if file.to
+if file.path
 ]
 
 def create_review_comment(
@@ -173,7 +173,7 @@ def main():
         filtered_diff = [
             file
             for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.to or "", pattern) for pattern in exclude_patterns)
+            if not any(fnmatch.fnmatch(file.path or "", pattern) for pattern in exclude_patterns)
         ]
 
         comments = analyze_code(filtered_diff, pr_details)
@@ -195,7 +195,7 @@ def main():
         filtered_diff = [
             file
             for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.to or "", pattern) for pattern in exclude_patterns)
+            if not any(fnmatch.fnmatch(file.path or "", pattern) for pattern in exclude_patterns)
         ]
 
         comments = analyze_code(filtered_diff, pr_details)

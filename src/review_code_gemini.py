@@ -124,14 +124,20 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             temperature=0.2,
             max_output_tokens=700,
         )
+        print(f"Raw Gemini response: {response.result}")  # Print raw response
         try:
             data = json.loads(response.result.strip())
-            if "reviews" in data:
+            if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
+                # Check if each review item has the required keys
+                for review in reviews:
+                    if not ("lineNumber" in review and "reviewComment" in review):
+                        print(f"Incomplete review item: {review}")
+                        return []
                 return reviews
             else:
-                print("Error: 'reviews' key not found in Gemini response")
-                return []  # Return an empty list
+                print("Error: 'reviews' key not found or is not a list in Gemini response")
+                return []
         except json.JSONDecodeError as e:
             print(f"Error decoding Gemini response: {e}")
             return []
@@ -143,16 +149,15 @@ def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, s
     """Creates comment objects from AI responses."""
     comments = []
     for ai_response in ai_responses:
-        if ai_response is None:
-            continue
-
         try:
+            line_number = hunk.source_start + int(ai_response["lineNumber"]) - 1
+            print(f"Creating comment for line: {line_number}")  # Debugging print
             comments.append({
                 "body": ai_response["reviewComment"],
                 "path": file.path,
-                "line": int(ai_response["lineNumber"]),
+                "line": line_number,
             })
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError, ValueError) as e:  # Catch ValueError for line number conversion
             print(f"Error creating comment from AI response: {e}, Response: {ai_response}")
     return comments
 

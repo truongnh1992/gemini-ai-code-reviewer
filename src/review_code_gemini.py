@@ -75,7 +75,7 @@ def analyze_code(parsed_diff: List[PatchedFile], pr_details: PRDetails) -> List[
     for file in parsed_diff:
         if file.path == "/dev/null":  # Use file.path here
             continue  # Ignore deleted files
-        for hunk in file.modified_hunks:
+        for hunk in file.hunks:
             prompt = create_prompt(file, hunk, pr_details)
             ai_response = get_ai_response(prompt)
             if ai_response:

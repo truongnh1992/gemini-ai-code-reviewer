@@ -195,7 +195,7 @@ def main():
         filtered_diff = [
             file
             for file in parsed_diff
-            if not any(minimatch.fnmatch(file.to or "", pattern) for pattern in exclude_patterns)
+            if not any(fnmatch.fnmatch(file.to or "", pattern) for pattern in exclude_patterns)
         ]
 
         comments = analyze_code(filtered_diff, pr_details)

@@ -150,10 +150,25 @@ def create_review_comment(
     pr = repo.get_pull(pull_number)
     pr.create_review(comments=comments, event="COMMENT")
 
-def parse_diff(diff_str: str) -> List[PatchedFile]:
-    """Parses the diff string and returns a list of PatchedFile objects."""
-    patch_set = PatchSet(diff_str)
-    return list(patch_set)
+def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
+    """Parses the diff string using difflib and returns a list of file changes."""
+    files = []
+    current_file = None
+    diff_lines = diff_str.splitlines()
+    for line in diff_lines:
+        if line.startswith("--- a/"):
+            current_file = {"path": line[6:], "hunks": []}
+            files.append(current_file)
+        elif line.startswith("+++ b/"):
+            current_file["path"] = line[6:]  # Update with the correct filename
+        elif line.startswith("@@"):
+            hunk_header = line
+            hunk_lines = []
+            current_file["hunks"].append({"header": hunk_header, "lines": hunk_lines})
+        elif current_file and current_file["hunks"]:
+            current_file["hunks"][-1]["lines"].append(line)
+    return files
+
 
 def main():
     """Main function to execute the code review process."""

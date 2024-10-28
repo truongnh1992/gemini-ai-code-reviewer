@@ -124,18 +124,27 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             temperature=0.2,
             max_output_tokens=700,
         )
-        reviews = json.loads(response.result.strip())["reviews"]
-        return reviews
+        try:
+            data = json.loads(response.result.strip())
+            if "reviews" in data:
+                reviews = data["reviews"]
+                return reviews
+            else:
+                print("Error: 'reviews' key not found in Gemini response")
+                return []  # Return an empty list
+        except json.JSONDecodeError as e:
+            print(f"Error decoding Gemini response: {e}")
+            return []
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
-    return None
+        return []
 
 def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
     comments = []
     for ai_response in ai_responses:
-        if ai_response is None:  # Explicitly check for None
-            continue  # Skip this ai_response if it's None
+        if ai_response is None:
+            continue
 
         try:
             comments.append({

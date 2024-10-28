@@ -45,15 +45,22 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     commit = pr.get_commits().reversed[0]
     diff = ""
     for file in commit.files:
-        # Assuming file.raw_data contains 'content' for the previous version
-        # and 'blob_url' to get the current version content
-        from urllib.request import urlopen
-        with urlopen(file.raw_data["blob_url"]) as f:
-            current_content = f.read().decode('utf-8')
-        
+        try:
+            # Try accessing 'content' first
+            current_content = file.raw_data["content"]
+        except KeyError:
+            try:
+                # If 'content' is missing, use 'blob_url'
+                from urllib.request import urlopen
+                with urlopen(file.raw_data["blob_url"]) as f:
+                    current_content = f.read().decode('utf-8')
+            except Exception as e:
+                print(f"Error fetching content for {file.filename}: {e}")
+                continue  # Skip this file if content retrieval fails
+
         # Generate the diff
         diff_lines = difflib.unified_diff(
-            file.raw_data["content"].splitlines(keepends=True),
+            file.raw_data.get("content", "").splitlines(keepends=True),  # Handle potential missing 'content'
             current_content.splitlines(keepends=True),
             fromfile=file.raw_data.get("filename", "old_file"),
             tofile=file.filename

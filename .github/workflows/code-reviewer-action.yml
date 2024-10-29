@@ -17,7 +17,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd src
           pip install -r requirements.txt
 
       - name: Run AI Code Reviewer
@@ -25,4 +24,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python3.10 src/review_code_gemini.py
+          python3.10 review_code_gemini.py

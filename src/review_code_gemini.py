@@ -182,14 +182,17 @@ def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
             current_file = {"path": line[6:], "hunks": []}
             files.append(current_file)
         elif line.startswith("+++ b/"):
-            current_file["path"] = line[6:]  # Update with the correct filename
+            if current_file is not None:  # Check if current_file is initialized
+                current_file["path"] = line[6:]
         elif line.startswith("@@"):
-            hunk_header = line
-            hunk_lines = []
-            current_file["hunks"].append({"header": hunk_header, "lines": hunk_lines})
-        elif current_file and current_file["hunks"]:
+            if current_file is not None:  # Check if current_file is initialized
+                hunk_header = line
+                hunk_lines = []
+                current_file["hunks"].append({"header": hunk_header, "lines": hunk_lines})
+        elif current_file is not None and current_file["hunks"]:  # Check for both conditions
             current_file["hunks"][-1]["lines"].append(line)
     return files
+
 
 
 def main():

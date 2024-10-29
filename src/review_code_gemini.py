@@ -7,7 +7,6 @@ import difflib
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
 
-# Get input values from environment variables (GitHub Actions)
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 # Initialize GitHub and Gemini clients
@@ -90,7 +89,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
-    return f"""Your task is to review pull requests. Instructions:
+    return f"""Your task is reviewing pull requests. Instructions:
     - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Do not give positive comments or compliments.
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.

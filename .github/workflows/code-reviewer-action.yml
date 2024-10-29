@@ -1,11 +1,11 @@
-name: Gemini AI Code Review
+name: Gemini AI Code Reviewer
 
 on:
   pull_request:
     types: [opened, reopened, synchronize]
 permissions: write-all
 jobs:
-  review:
+  gemini-code-review:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

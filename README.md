@@ -1,0 +1,59 @@
+# Gemini AI Code Reviewer
+
+Gemini AI Code Reviewer is a GitHub Action that leverages Gemini API to provide intelligent feedback and suggestions on
+your pull requests. This powerful tool helps improve code quality and saves developers time by automating the code
+review process.
+
+## Features
+
+- Review your PRs using Gemini API (model `gemini-1.5-pro-002`)
+- Give use comments and suggestions to improve the source codes
+
+## Setup
+
+1. To use this GitHub Action, you need an Gemini API key. If you don't have one, sign up for an API key
+   at [Google AI Studio](https://makersuite.google.com/app/apikey).
+
+2. Add the Gemini API key as a GitHub Secret in your repository with the name `GEMINI_API_KEY`. You can find more
+   information about GitHub Secrets [here](https://docs.github.com/en/actions/reference/encrypted-secrets).
+
+3. Create a `.github/workflows/code-review.yml` file in your repository and add the following content:
+
+```yaml
+name: Gemini AI Code Reviewer
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+permissions: write-all
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Gemini AI Code Reviewer
+        uses: truongnh1992/gemini-ai-code-reviewer@main
+        with:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          exclude: "**/*.json, **/*.md" # Optional: exclude patterns separated by commas
+```
+
+4. Commit codes to your repository, and `Gemini AI Code Reviewer` will start working on your pull requests.
+   
+## How It Works
+
+This GitHub Action uses the Gemini AI API to provide code review feedback. It works by:
+
+1. **Analyzing the changes**: It grabs the code modifications from your pull request and filters out any files you don't want reviewed.
+2. **Consulting the Gemini model**: It sends chunks of the modified code to the Gemini for analysis.
+3. **Providing feedback**: Gemini AI examines the code and generates review comments.
+4. **Delivering the review**: The Action adds the comments directly to your pull request on GitHub.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.

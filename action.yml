@@ -12,8 +12,8 @@ inputs:
     required: false
     default: ""
 runs:
-  using: "python3"
-  main: "src/review_code_gemini.py"
+  using: "docker"
+  image: "Dockerfile"
 branding:
   icon: "aperture"
   color: "green"

@@ -5,7 +5,7 @@ FROM python:3.9.6-alpine
 WORKDIR /app
 
 # copy the requirements file used for dependencies
-COPY src/requirements.txt .
+COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
@@ -14,4 +14,4 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 COPY . .
 
 # Run app.py when the container launches
-ENTRYPOINT ["python3", "src/review_code_gemini.py"]
+ENTRYPOINT ["python3", "review_code_gemini.py"]

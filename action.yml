@@ -12,8 +12,8 @@ inputs:
     required: false
     default: ""
 runs:
-  using: "docker"
-  image: "Dockerfile"
+  using: 'docker'
+  image: 'Dockerfile'
 branding:
   icon: "aperture"
   color: "green"

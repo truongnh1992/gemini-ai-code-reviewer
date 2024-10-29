@@ -120,7 +120,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     try:
         response = gemini_client.generate_text(
             prompt=prompt,
-            model="models/code-bison-001",
+            model="gemini-1.5-pro-002",
             temperature=0.2,
             max_output_tokens=700,
         )

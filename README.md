@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Gemini AI Code Reviewer
-        uses: truongnh1992/gemini-ai-code-reviewer@main
+        uses: truongnh1992/gemini-ai-code-reviewer@latest
         with:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

@@ -70,6 +70,7 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
 
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
     """Analyzes the code changes using Gemini and generates review comments."""
+    print("Parsed diff:", parsed_diff)
     comments = []
     for file_data in parsed_diff:
         file_path = file_data["path"]
@@ -116,6 +117,8 @@ Git diff to review:
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
+    print("===== The promt =====")
+    print(prompt)
     try:
         response = gemini_client.generate_text(
             prompt=prompt,
@@ -146,6 +149,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 
 def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
+    print("AI responses in create_comment:", ai_responses)
     comments = []
     for ai_response in ai_responses:
         try:
@@ -200,6 +204,7 @@ def main():
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
     if event_data["action"] == "opened":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
+        print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -207,6 +212,7 @@ def main():
         parsed_diff = parse_diff(diff)
 
         exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
+        print("===== exclude_patterns =====:", exclude_patterns)
         exclude_patterns = [s.strip() for s in exclude_patterns]
 
         filtered_diff = [
@@ -222,6 +228,7 @@ def main():
             )
     elif event_data["action"] == "synchronize":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
+        print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -229,6 +236,7 @@ def main():
         parsed_diff = parse_diff(diff)
 
         exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
+        print("===== exclude_patterns =====:", exclude_patterns)
         exclude_patterns = [s.strip() for s in exclude_patterns]
 
         filtered_diff = [
@@ -238,6 +246,8 @@ def main():
         ]
 
         comments = analyze_code(filtered_diff, pr_details)
+        print("========== There are some comments on the PR ==========")
+        print(comments)
         if comments:
             create_review_comment(
                 pr_details.owner, pr_details.repo, pr_details.pull_number, comments

@@ -116,6 +116,8 @@ Git diff to review:
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
+    print("===== The promt =====")
+    print(prompt)
     try:
         response = gemini_client.generate_text(
             prompt=prompt,
@@ -238,6 +240,8 @@ def main():
         ]
 
         comments = analyze_code(filtered_diff, pr_details)
+        print("========== There are some comments on the PR ==========")
+        print(comments)
         if comments:
             create_review_comment(
                 pr_details.owner, pr_details.repo, pr_details.pull_number, comments

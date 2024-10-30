@@ -68,28 +68,6 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     return diff
 
 
-def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
-    """Analyzes the code changes using Gemini and generates review comments."""
-    print("Parsed diff:", parsed_diff)
-    comments = []
-    for file_data in parsed_diff:
-        file_path = file_data["path"]
-        if file_path == "/dev/null":
-            continue  # Ignore deleted files
-        for hunk_data in file_data["hunks"]:
-            hunk_content = "\n".join(hunk_data["lines"])
-            prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
-            ai_response = get_ai_response(prompt)
-            if ai_response:
-                # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
-                new_comments = create_comment(file_path, hunk_data, ai_response)
-                if new_comments:
-                    print("New comments generated:", new_comments)
-                    comments.extend(new_comments)
-    print("Comments before returning:", comments)
-    return comments
-
-
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
     return f"""Your task is reviewing pull requests. Instructions:
@@ -147,6 +125,27 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
         return []
+
+def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
+    """Analyzes the code changes using Gemini and generates review comments."""
+    print("Parsed diff:", parsed_diff)
+    comments = []
+    for file_data in parsed_diff:
+        file_path = file_data["path"]
+        if file_path == "/dev/null":
+            continue  # Ignore deleted files
+        for hunk_data in file_data["hunks"]:
+            hunk_content = "\n".join(hunk_data["lines"])
+            prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
+            ai_response = get_ai_response(prompt)
+            if ai_response:
+                # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
+                new_comments = create_comment(file_path, hunk_data, ai_response)
+                if new_comments:
+                    print("New comments generated:", new_comments)
+                    comments.extend(new_comments)
+    print("Comments before returning:", comments)
+    return comments
 
 def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""

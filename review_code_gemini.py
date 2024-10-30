@@ -228,6 +228,7 @@ def main():
             )
     elif event_data["action"] == "synchronize":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
+        print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -235,6 +236,7 @@ def main():
         parsed_diff = parse_diff(diff)
 
         exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
+        print("===== exclude_patterns =====:", exclude_patterns)
         exclude_patterns = [s.strip() for s in exclude_patterns]
 
         filtered_diff = [

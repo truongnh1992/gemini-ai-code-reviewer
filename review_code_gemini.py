@@ -84,7 +84,9 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
                 # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
                 new_comments = create_comment(file_path, hunk_data, ai_response)
                 if new_comments:
+                    print("New comments generated:", new_comments)
                     comments.extend(new_comments)
+    print("Comments before returning:", comments)
     return comments
 
 
@@ -204,7 +206,7 @@ def main():
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
     if event_data["action"] == "opened":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
-        print("===== Diff =====:", diff)
+        #print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -249,9 +251,13 @@ def main():
         print("========== There are some comments on the PR ==========")
         print(comments)
         if comments:
-            create_review_comment(
-                pr_details.owner, pr_details.repo, pr_details.pull_number, comments
-            )
+            try:
+                create_review_comment(
+                    pr_details.owner, pr_details.repo, pr_details.pull_number, comments
+                )
+                print("***** CreateComment *****")  # Debug print
+            except Exception as e:
+                print("Error in create_review_comment:", e)
     else:
         print("Unsupported event:", os.environ.get("GITHUB_EVENT_NAME"))
         return

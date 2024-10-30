@@ -228,7 +228,7 @@ def main():
             )
     elif event_data["action"] == "synchronize":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
-        print("===== Diff =====:", diff)
+        #print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return

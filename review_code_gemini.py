@@ -70,6 +70,7 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
 
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
     """Analyzes the code changes using Gemini and generates review comments."""
+    print("Parsed diff:", parsed_diff)
     comments = []
     for file_data in parsed_diff:
         file_path = file_data["path"]
@@ -148,6 +149,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 
 def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
+    print("AI responses in create_comment:", ai_responses)
     comments = []
     for ai_response in ai_responses:
         try:

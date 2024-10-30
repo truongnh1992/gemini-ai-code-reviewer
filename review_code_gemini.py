@@ -93,7 +93,6 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
     return f"""Your task is reviewing pull requests. Instructions:
-    - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Do not give positive comments or compliments.
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
     - Write the comment in GitHub Markdown format.
@@ -134,10 +133,10 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
                 # Check if each review item has the required keys
-                for review in reviews:
-                    if not ("lineNumber" in review and "reviewComment" in review):
-                        print(f"Incomplete review item: {review}")
-                        return []
+                # for review in reviews:
+                #     if not ("lineNumber" in review and "reviewComment" in review):
+                #         print(f"Incomplete review item: {review}")
+                #         return []
                 return reviews
             else:
                 print("Error: 'reviews' key not found or is not a list in Gemini response")

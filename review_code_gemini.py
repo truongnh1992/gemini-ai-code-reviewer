@@ -252,6 +252,7 @@ def main():
             create_review_comment(
                 pr_details.owner, pr_details.repo, pr_details.pull_number, comments
             )
+            print("***** CreateComment *****")
     else:
         print("Unsupported event:", os.environ.get("GITHUB_EVENT_NAME"))
         return

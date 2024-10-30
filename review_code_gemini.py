@@ -255,7 +255,7 @@ def main():
                 create_review_comment(
                     pr_details.owner, pr_details.repo, pr_details.pull_number, comments
                 )
-                print("***** Create-Alex-Comment *****")  # Debug print
+                print("***** CreateComment *****")  # Debug print
             except Exception as e:
                 print("Error in create_review_comment:", e)
     else:

@@ -118,7 +118,7 @@ Git diff to review:
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
-    print("===== The promt are: =====")
+    print("===== The promt sent to Gemini API are: =====")
     print(prompt)
     try:
         response = gemini_client.generate_text(

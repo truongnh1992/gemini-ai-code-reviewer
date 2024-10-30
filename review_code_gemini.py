@@ -33,8 +33,7 @@ def review_pull_request(event_path):
     review_comments = []
     for file in files:
         # Get the file content (corrected)
-        file_content_encoded = file.raw_data["content"]
-        file_content = base64.b64decode(file_content_encoded).decode("utf-8")
+        file_content = file.decoded_content.decode("utf-8") 
 
         # Use Gemini to generate review comments for the file
         response = Gemini.generate_text(

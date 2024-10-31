@@ -79,10 +79,12 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
         #     is_binary_file=False
         # )
         # patched_file.path = file_path  # Set the path explicitly
-        patched_file = PatchedFile()
-        patched_file.path = file_path
-        patched_file.source_file = f"a/{file_path}"
-        patched_file.target_file = f"b/{file_path}"
+        # Create a simple object to hold the file path
+        class FileInfo:
+            def __init__(self, path):
+                self.path = path
+
+        file_info = FileInfo(file_path)
 
         hunks = file_data.get('hunks', [])
         print(f"Hunks in file: {len(hunks)}")
@@ -90,11 +92,11 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
         for hunk_data in hunks:
             print(f"\nHunk content: {json.dumps(hunk_data, indent=2)}")
             hunk_lines = hunk_data.get('lines', [])
-            print(f"Number of lines in hunk: {len(hunk_lines)}")  # Debug: Check hunk lines
+            print(f"Number of lines in hunk: {len(hunk_lines)}")
+
             if not hunk_lines:
                 continue
                 
-            # Create Hunk object
             hunk = Hunk()
             hunk.source_start = 1
             hunk.source_length = len(hunk_lines)
@@ -102,19 +104,19 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
             hunk.target_length = len(hunk_lines)
             hunk.content = '\n'.join(hunk_lines)
             
-            prompt = create_prompt(patched_file, hunk, pr_details)
+            prompt = create_prompt(file_info, hunk, pr_details)
             print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
-            print(f"AI response received: {ai_response}")  # Debug: Check AI response
+            print(f"AI response received: {ai_response}")
             
             if ai_response:
-                new_comments = create_comment(patched_file, hunk, ai_response)
-                print(f"Comments created from AI response: {new_comments}")  # Debug: Check comment creation
+                new_comments = create_comment(file_info, hunk, ai_response)
+                print(f"Comments created from AI response: {new_comments}")
                 if new_comments:
                     comments.extend(new_comments)
                     print(f"Updated comments list: {comments}")
 
-    print(f"\nFinal comments list: {comments}")  # Debug: Final output
+    print(f"\nFinal comments list: {comments}")
     return comments
 
 

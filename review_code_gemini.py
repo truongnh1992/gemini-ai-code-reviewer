@@ -13,7 +13,7 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 # Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)
 gemini_client = Client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-gemini_model=Client.GenerativeModel('gemini-1.5-pro-002'),
+gemini_model=Client.GenerativeModel('gemini-1.5-pro-002')
 
 
 class PRDetails:

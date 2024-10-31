@@ -8,7 +8,7 @@ import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
 
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 
 # Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)

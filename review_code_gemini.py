@@ -144,12 +144,12 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
-        # response = gemini_model.generate_content(
-        #     prompt=prompt,
-        #     temperature=0.2,
-        #     max_output_tokens=700,
-        # )
-        response = gemini_model.generate_content(prompt)
+        response = gemini_model.generate_content(
+            prompt=prompt,
+            temperature=0.2,
+            max_output_tokens=700,
+        )
+        #response = gemini_model.generate_content(prompt)
 
         print(f"Raw Gemini response: {response.text}")  # Print raw response
         prompt += "\nPlease format your response as a JSON object with a 'reviews' array containing objects with 'lineNumber' and 'reviewComment' fields."
@@ -173,7 +173,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
                 return []
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON response: {e}")
-            print(f"Raw response: {response.result}")
+            print(f"Raw response: {response.text}")
             return []
     except Exception as e:
         print(f"Error during Gemini API call: {e}")

@@ -143,7 +143,6 @@ Git diff to review:
 
 ```diff
 {hunk.content}
-{chr(10).join([f"{c.ln if c.ln else c.ln2} {c.content}" for c in hunk.changes])}
 ```
 """
 

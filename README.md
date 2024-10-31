@@ -7,6 +7,8 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 - Review your PRs using Gemini API (model `gemini-1.5-pro-002`)
 - Give use comments and suggestions to improve the source codes
 
+![Demo](./Demo.png)
+
 ## Setup
 
 1. To use this GitHub Action, you need an Gemini API key. If you don't have one, sign up for an API key
@@ -31,9 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Gemini AI Code Reviewer
+      - name: Run Gemini AI Code Reviewer
         uses: truongnh1992/gemini-ai-code-reviewer@latest
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

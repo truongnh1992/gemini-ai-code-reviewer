@@ -60,25 +60,29 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     """Analyzes the code changes using Gemini and generates review comments."""
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
-    print(f"Files content: {json.dumps(parsed_diff, indent=2)}")
+    #print(f"Files content: {json.dumps(parsed_diff, indent=2)}")
     comments = []
     print(f"Initial comments list: {comments}")
     
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
         print(f"\nProcessing file: {file_path}")
-        print(f"File data: {json.dumps(file_data, indent=2)}")
+        #print(f"File data: {json.dumps(file_data, indent=2)}")
 
         if not file_path or file_path == "/dev/null":
             continue
         
        # Fixed PatchedFile initialization
-        patched_file = PatchedFile(
-            source_file=f"a/{file_path}",
-            target_file=f"b/{file_path}",
-            is_binary_file=False
-        )
-        patched_file.path = file_path  # Set the path explicitly
+        # patched_file = PatchedFile(
+        #     source_file=f"a/{file_path}",
+        #     target_file=f"b/{file_path}",
+        #     is_binary_file=False
+        # )
+        # patched_file.path = file_path  # Set the path explicitly
+        patched_file = PatchedFile()
+        patched_file.path = file_path
+        patched_file.source_file = f"a/{file_path}"
+        patched_file.target_file = f"b/{file_path}"
 
         hunks = file_data.get('hunks', [])
         print(f"Hunks in file: {len(hunks)}")

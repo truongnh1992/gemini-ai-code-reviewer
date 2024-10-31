@@ -183,17 +183,31 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
     print("AI responses in create_comment:", ai_responses)
+    print(f"Hunk details - start: {hunk.source_start}, length: {hunk.source_length}")
+    print(f"Hunk content:\n{hunk.content}")
+
     comments = []
     for ai_response in ai_responses:
         try:
-            line_number = hunk.source_start + int(ai_response["lineNumber"]) - 1
-            print(f"Creating comment for line: {line_number}")  # Debugging print
-            comments.append({
+            line_number = int(ai_response["lineNumber"])
+            print(f"Original AI suggested line: {line_number}")
+            
+            # Ensure the line number is within the hunk's range
+            if line_number < 1 or line_number > hunk.source_length:
+                print(f"Warning: Line number {line_number} is outside hunk range")
+                continue
+                
+            # Create the comment with the correct position
+            comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
-                "line": line_number,
-            })
-        except (KeyError, TypeError, ValueError) as e:  # Catch ValueError for line number conversion
+                "position": line_number,  # Use position instead of line
+                "commit_id": None  # Will be filled by create_review_comment
+            }
+            print(f"Created comment: {json.dumps(comment, indent=2)}")
+            comments.append(comment)
+            
+        except (KeyError, TypeError, ValueError) as e:
             print(f"Error creating comment from AI response: {e}, Response: {ai_response}")
     return comments
 
@@ -210,10 +224,25 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     try:
-        review = pr.create_review(comments=comments, event="COMMENT")
-        print(f"Review created successfully: {review}")
+        # Get the latest commit SHA
+        latest_commit = list(pr.get_commits())[-1]
+        
+        # Update comments with the commit SHA
+        for comment in comments:
+            comment["commit_id"] = latest_commit.sha
+        
+        # Create the review
+        review = pr.create_review(
+            body="Code review comments",  # Add a general review message
+            comments=comments,
+            commit_id=latest_commit.sha,
+            event="COMMENT"
+        )
+        print(f"Review created successfully with ID: {review.id}")
+        
     except Exception as e:
         print(f"Error creating review: {str(e)}")
+        print(f"Error type: {type(e)}")
         print(f"Review payload: {comments}")
 
 def parse_diff(diff_str: str) -> List[Dict[str, Any]]:

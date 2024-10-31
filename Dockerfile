@@ -2,7 +2,7 @@
 FROM python:3.9.6-alpine
 
 # Set the working directory to /app
-WORKDIR /github/workspace
+WORKDIR /app
 
 # copy the requirements file used for dependencies
 COPY requirements.txt .

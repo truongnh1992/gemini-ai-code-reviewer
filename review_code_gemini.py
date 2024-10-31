@@ -235,7 +235,6 @@ def create_review_comment(
         review = pr.create_review(
             body="Code review comments",  # Add a general review message
             comments=comments,
-            commit_id=latest_commit.sha,
             event="COMMENT"
         )
         print(f"Review created successfully with ID: {review.id}")

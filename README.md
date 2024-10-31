@@ -1,8 +1,6 @@
 # Gemini AI Code Reviewer
 
-Gemini AI Code Reviewer is a GitHub Action that leverages Gemini API to provide intelligent feedback and suggestions on
-your pull requests. This powerful tool helps improve code quality and saves developers time by automating the code
-review process.
+A GitHub Action that automatically reviews pull requests using Google's Gemini AI.
 
 ## Features
 
@@ -38,9 +36,9 @@ jobs:
       - name: Gemini AI Code Reviewer
         uses: truongnh1992/gemini-ai-code-reviewer@latest
         with:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          exclude: "**/*.json, **/*.md" # Optional: exclude patterns separated by commas
+          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json" # Optional: exclude patterns separated by commas
 ```
 
 4. Commit codes to your repository, and `Gemini AI Code Reviewer` will start working on your pull requests.

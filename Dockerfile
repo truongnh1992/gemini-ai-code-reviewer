@@ -14,4 +14,4 @@ RUN pip install --trusted-host pypi.python.org -r requirements.txt
 COPY review_code_gemini.py .
 
 # Run review_code_gemini.py when the container launches
-ENTRYPOINT ["python3", "review_code_gemini.py"]
+ENTRYPOINT ["python3", "/app/review_code_gemini.py"]

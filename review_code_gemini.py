@@ -133,10 +133,11 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
                 # Check if each review item has the required keys
-                # for review in reviews:
-                #     if not ("lineNumber" in review and "reviewComment" in review):
-                #         print(f"Incomplete review item: {review}")
-                #         return []
+                for review in reviews:
+                    if not ("lineNumber" in review and "reviewComment" in review):
+                        print(f"Incomplete review item: {review}")
+                        return []
+                print(reviews)
                 return reviews
             else:
                 print("Error: 'reviews' key not found or is not a list in Gemini response")

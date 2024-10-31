@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 import google.generativeai as Client
 from github import Github
 import difflib
+import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
 
@@ -41,60 +42,69 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     """Fetches the diff of the pull request from GitHub API."""
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
-    commit = pr.get_commits().reversed[0]
-    diff = ""
-    for file in commit.files:
-        try:
-            # Try accessing 'content' first
-            current_content = file.raw_data["content"]
-        except KeyError:
-            try:
-                # If 'content' is missing, use 'blob_url'
-                from urllib.request import urlopen
-                with urlopen(file.raw_data["blob_url"]) as f:
-                    current_content = f.read().decode('utf-8')
-            except Exception as e:
-                print(f"Error fetching content for {file.filename}: {e}")
-                continue  # Skip this file if content retrieval fails
-
-        # Generate the diff
-        diff_lines = difflib.unified_diff(
-            file.raw_data.get("content", "").splitlines(keepends=True),  # Handle potential missing 'content'
-            current_content.splitlines(keepends=True),
-            fromfile=file.raw_data.get("filename", "old_file"),
-            tofile=file.filename
-        )
-        diff += ''.join(diff_lines) + "\n"
-    return diff
+    
+    # Get the diff using the diff_url
+    headers = {'Authorization': f'token {GITHUB_TOKEN}'}
+    response = requests.get(pr.diff_url, headers=headers)
+    
+    if response.status_code == 200:
+        diff = response.text
+        print(f"Retrieved diff length: {len(diff) if diff else 0}")
+        return diff
+    else:
+        print(f"Failed to get diff. Status code: {response.status_code}")
+        return ""
 
 
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
     """Analyzes the code changes using Gemini and generates review comments."""
-    print("Parsed diff:", parsed_diff)
+    print("Starting analyze_code...")
     comments = []
+    
     for file_data in parsed_diff:
-        file_path = file_data["path"]
-        if file_path == "/dev/null":
-            continue  # Ignore deleted files
-        for hunk_data in file_data["hunks"]:
-            hunk_content = "\n".join(hunk_data["lines"])
-            prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
-            print("Calling get_ai_response...")
+        file_path = file_data.get('path', '')
+        if not file_path or file_path == "/dev/null":
+            continue  # Skip files without path or deleted files
+            
+        print(f"Processing file: {file_path}")
+        
+        # Create PatchedFile object
+        patched_file = PatchedFile(
+            source_file=f"a/{file_path}",
+            target_file=f"b/{file_path}"
+        )
+        patched_file.path = file_path  # Set the path explicitly
+        
+        for hunk_data in file_data.get('hunks', []):
+            hunk_lines = hunk_data.get('lines', [])
+            if not hunk_lines:
+                continue
+                
+            # Create Hunk object
+            hunk = Hunk()
+            hunk.source_start = 1
+            hunk.source_length = len(hunk_lines)
+            hunk.target_start = 1
+            hunk.target_length = len(hunk_lines)
+            hunk.content = '\n'.join(hunk_lines)
+            
+            prompt = create_prompt(patched_file, hunk, pr_details)
+            print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
-            print("get_ai_response finished!")
+            print(f"Received AI response: {ai_response}")
+            
             if ai_response:
-                # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
-                new_comments = create_comment(file_path, hunk_data, ai_response)
+                new_comments = create_comment(patched_file, hunk, ai_response)
                 if new_comments:
-                    print("New comments generated:", new_comments)
                     comments.extend(new_comments)
-    print("Comments before returning:", comments)
+                    
     return comments
 
 
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
     return f"""Your task is reviewing pull requests. Instructions:
+    - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Do not give positive comments or compliments.
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
     - Write the comment in GitHub Markdown format.
@@ -130,21 +140,27 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             max_output_tokens=700,
         )
         print(f"Raw Gemini response: {response.result}")  # Print raw response
+        prompt += "\nPlease format your response as a JSON object with a 'reviews' array containing objects with 'lineNumber' and 'reviewComment' fields."
+
         try:
             data = json.loads(response.result.strip())
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
-                # Check if each review item has the required keys
-                # for review in reviews:
-                #     if not ("lineNumber" in review and "reviewComment" in review):
-                #         print(f"Incomplete review item: {review}")
-                #         return []
-                return reviews
+                # Validate each review item
+                valid_reviews = []
+                for review in reviews:
+                    if "lineNumber" in review and "reviewComment" in review:
+                        valid_reviews.append(review)
+                    else:
+                        print(f"Invalid review format: {review}")
+                return valid_reviews
             else:
-                print("Error: 'reviews' key not found or is not a list in Gemini response")
+                print("Error: Response doesn't contain valid 'reviews' array")
+                print(f"Response content: {data}")
                 return []
         except json.JSONDecodeError as e:
-            print(f"Error decoding Gemini response: {e}")
+            print(f"Error decoding JSON response: {e}")
+            print(f"Raw response: {response.result}")
             return []
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
@@ -174,29 +190,49 @@ def create_review_comment(
     comments: List[Dict[str, Any]],
 ):
     """Submits the review comments to the GitHub API."""
+    print(f"Attempting to create {len(comments)} review comments")
+    print(f"Comments content: {json.dumps(comments, indent=2)}")
+
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
-    pr.create_review(comments=comments, event="COMMENT")
+    try:
+        review = pr.create_review(comments=comments, event="COMMENT")
+        print(f"Review created successfully: {review}")
+    except Exception as e:
+        print(f"Error creating review: {str(e)}")
+        print(f"Review payload: {comments}")
 
 def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
-    """Parses the diff string using difflib and returns a list of file changes."""
+    """Parses the diff string and returns a structured format."""
     files = []
     current_file = None
-    diff_lines = diff_str.splitlines()
-    for line in diff_lines:
-        if line.startswith("--- a/"):
-            current_file = {"path": line[6:], "hunks": []}
-            files.append(current_file)
-        elif line.startswith("+++ b/"):
-            if current_file is not None:  # Check if current_file is initialized
-                current_file["path"] = line[6:]
-        elif line.startswith("@@"):
-            if current_file is not None:  # Check if current_file is initialized
-                hunk_header = line
-                hunk_lines = []
-                current_file["hunks"].append({"header": hunk_header, "lines": hunk_lines})
-        elif current_file is not None and current_file["hunks"]:  # Check for both conditions
-            current_file["hunks"][-1]["lines"].append(line)
+    current_hunk = None
+    
+    for line in diff_str.splitlines():
+        if line.startswith('diff --git'):
+            if current_file:
+                files.append(current_file)
+            current_file = {'path': '', 'hunks': []}
+            
+        elif line.startswith('--- a/'):
+            if current_file:
+                current_file['path'] = line[6:]
+                
+        elif line.startswith('+++ b/'):
+            if current_file:
+                current_file['path'] = line[6:]
+                
+        elif line.startswith('@@'):
+            if current_file:
+                current_hunk = {'header': line, 'lines': []}
+                current_file['hunks'].append(current_hunk)
+                
+        elif current_hunk is not None:
+            current_hunk['lines'].append(line)
+            
+    if current_file:
+        files.append(current_file)
+        
     return files
 
 
@@ -221,8 +257,9 @@ def main():
         filtered_diff = [
             file
             for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.path or "", pattern) for pattern in exclude_patterns)
+            if not any(fnmatch.fnmatch(file.get('path', ''), pattern) for pattern in exclude_patterns)
         ]
+        print(f"Filtered diff, number of files: {len(filtered_diff)}")
 
         comments = analyze_code(filtered_diff, pr_details)
         if comments:

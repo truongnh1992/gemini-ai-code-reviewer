@@ -79,7 +79,9 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
         for hunk_data in file_data["hunks"]:
             hunk_content = "\n".join(hunk_data["lines"])
             prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
+            print("Calling get_ai_response...")
             ai_response = get_ai_response(prompt)
+            print("get_ai_response finished!")
             if ai_response:
                 # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
                 new_comments = create_comment(file_path, hunk_data, ai_response)

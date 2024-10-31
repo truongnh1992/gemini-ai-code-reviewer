@@ -180,12 +180,12 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
         print(f"Error during Gemini API call: {e}")
         return []
 
-def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
     print("AI responses in create_comment:", ai_responses)
     print(f"Hunk details - start: {hunk.source_start}, length: {hunk.source_length}")
     print(f"Hunk content:\n{hunk.content}")
-
+    
     comments = []
     for ai_response in ai_responses:
         try:
@@ -197,12 +197,12 @@ def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, s
                 print(f"Warning: Line number {line_number} is outside hunk range")
                 continue
                 
-            # Create the comment with the correct position
+            # Create the comment with the correct fields
             comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
-                "position": line_number,  # Use position instead of line
-                "commit_id": None  # Will be filled by create_review_comment
+                "position": line_number,
+                "side": "RIGHT"
             }
             print(f"Created comment: {json.dumps(comment, indent=2)}")
             comments.append(comment)
@@ -224,16 +224,9 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     try:
-        # Get the latest commit SHA
-        latest_commit = list(pr.get_commits())[-1]
-        
-        # Update comments with the commit SHA
-        for comment in comments:
-            comment["commit_id"] = latest_commit.sha
-        
         # Create the review
         review = pr.create_review(
-            body="Code review comments",  # Add a general review message
+            body="AI Code Review Comments",
             comments=comments,
             event="COMMENT"
         )

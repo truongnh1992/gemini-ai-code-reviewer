@@ -59,25 +59,32 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
     """Analyzes the code changes using Gemini and generates review comments."""
     print("Starting analyze_code...")
+    print(f"Number of files to analyze: {len(parsed_diff)}")
     comments = []
     print(f"Initial comments list: {comments}")
     
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
+        print(f"Hunks in file: {len(file_data.get('hunks', []))}")  # Debug: Check hunks
+
         if not file_path or file_path == "/dev/null":
-            continue  # Skip files without path or deleted files
-            
-        print(f"Processing file: {file_path}")
+            continue
         
         # Create PatchedFile object
+        # patched_file = PatchedFile(
+        #     source_file=f"a/{file_path}",
+        #     target_file=f"b/{file_path}"
+        # )
+        # patched_file.path = file_path  # Set the path explicitly
         patched_file = PatchedFile(
-            source_file=f"a/{file_path}",
-            target_file=f"b/{file_path}"
+            path=file_path,
+            source='',
+            target=''
         )
-        patched_file.path = file_path  # Set the path explicitly
         
         for hunk_data in file_data.get('hunks', []):
             hunk_lines = hunk_data.get('lines', [])
+            print(f"Number of lines in hunk: {len(hunk_lines)}")  # Debug: Check hunk lines
             if not hunk_lines:
                 continue
                 
@@ -92,14 +99,16 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
             prompt = create_prompt(patched_file, hunk, pr_details)
             print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
-            print(f"Received AI response: {ai_response}")
+            print(f"AI response received: {ai_response}")  # Debug: Check AI response
             
             if ai_response:
                 new_comments = create_comment(patched_file, hunk, ai_response)
+                print(f"Comments created from AI response: {new_comments}")  # Debug: Check comment creation
                 if new_comments:
                     comments.extend(new_comments)
-                    print(f"Updated comments after adding new ones: {comments}")
-                    
+                    print(f"Updated comments list: {comments}")
+
+    print(f"\nFinal comments list: {comments}")  # Debug: Final output
     return comments
 
 
@@ -146,6 +155,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 
         try:
             data = json.loads(response.result.strip())
+            print(f"Parsed JSON data: {data}")  # Debug: Parsed JSON
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
                 # Validate each review item

@@ -60,29 +60,31 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     """Analyzes the code changes using Gemini and generates review comments."""
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
+    print(f"Files content: {json.dumps(parsed_diff, indent=2)}")
     comments = []
     print(f"Initial comments list: {comments}")
     
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
-        print(f"Hunks in file: {len(file_data.get('hunks', []))}")  # Debug: Check hunks
+        print(f"\nProcessing file: {file_path}")
+        print(f"File data: {json.dumps(file_data, indent=2)}")
 
         if not file_path or file_path == "/dev/null":
             continue
         
-        # Create PatchedFile object
-        # patched_file = PatchedFile(
-        #     source_file=f"a/{file_path}",
-        #     target_file=f"b/{file_path}"
-        # )
-        # patched_file.path = file_path  # Set the path explicitly
+       # Fixed PatchedFile initialization
         patched_file = PatchedFile(
-            path=file_path,
-            source='',
-            target=''
+            source_file=f"a/{file_path}",
+            target_file=f"b/{file_path}",
+            is_binary_file=False
         )
+        patched_file.path = file_path  # Set the path explicitly
+
+        hunks = file_data.get('hunks', [])
+        print(f"Hunks in file: {len(hunks)}")
         
-        for hunk_data in file_data.get('hunks', []):
+        for hunk_data in hunks:
+            print(f"\nHunk content: {json.dumps(hunk_data, indent=2)}")
             hunk_lines = hunk_data.get('lines', [])
             print(f"Number of lines in hunk: {len(hunk_lines)}")  # Debug: Check hunk lines
             if not hunk_lines:

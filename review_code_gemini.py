@@ -153,7 +153,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     try:
         response = gemini_client.generate_content(
             prompt=prompt,
-            model="gemini-1.5-pro-002",
+            model=Client.GenerativeModel(model_name="gemini-1.5-pro-002"),
             temperature=0.2,
             max_output_tokens=700,
         )

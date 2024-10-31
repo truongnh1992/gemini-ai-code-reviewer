@@ -144,22 +144,23 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
-        # response = gemini_model.generate_content(
-        #     prompt=prompt,
-        #     temperature=0.2,
-        #     max_output_tokens=700,
-        # )
         response = gemini_model.generate_content(prompt)
 
-        print(f"Raw Gemini response: {response.text}")  # Print raw response
-        prompt += "\nPlease format your response as a JSON object with a 'reviews' array containing objects with 'lineNumber' and 'reviewComment' fields."
-
+        response_text = response.text.strip()
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]  # Remove ```json
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]  # Remove ```
+        response_text = response_text.strip()
+        
+        print(f"Cleaned response text: {response_text}")
+        
         try:
-            data = json.loads(response.text.strip())
-            print(f"Parsed JSON data: {data}")  # Debug: Parsed JSON
+            data = json.loads(response_text)
+            print(f"Parsed JSON data: {data}")
+            
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
-                # Validate each review item
                 valid_reviews = []
                 for review in reviews:
                     if "lineNumber" in review and "reviewComment" in review:
@@ -173,7 +174,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
                 return []
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON response: {e}")
-            print(f"Raw response: {response.text}")
+            print(f"Raw response: {response_text}")
             return []
     except Exception as e:
         print(f"Error during Gemini API call: {e}")

@@ -279,7 +279,6 @@ def main():
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
     if event_data["action"] == "opened":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
-        print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -303,7 +302,6 @@ def main():
             )
     elif event_data["action"] == "synchronize":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
-        print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -320,8 +318,6 @@ def main():
         ]
 
         comments = analyze_code(filtered_diff, pr_details)
-        print("========== There are some comments on the PR ==========")
-        print(comments)
         if comments:
             try:
                 create_review_comment(

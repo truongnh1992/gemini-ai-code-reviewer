@@ -280,7 +280,7 @@ def main():
     if event_data["action"] == "opened":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
         if not diff:
-            print("No diff found")
+            print("There is no diff found")
             return
 
         parsed_diff = parse_diff(diff)

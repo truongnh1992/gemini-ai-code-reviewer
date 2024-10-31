@@ -1,6 +1,5 @@
 import os
 import json
-import base64
 
 import google.generativeai as Gemini
 from github import Github
@@ -33,7 +32,8 @@ def review_pull_request(event_path):
     review_comments = []
     for file in files:
         # Get the file content (corrected)
-        file_content = file.decoded_content.decode("utf-8") 
+        file_content_object = file.get_content()  # Get ContentFile object
+        file_content = file_content_object.decoded_content.decode("utf-8")
 
         # Use Gemini to generate review comments for the file
         response = Gemini.generate_text(

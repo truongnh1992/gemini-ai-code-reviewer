@@ -3,9 +3,7 @@ name: Gemini AI Code Reviewer
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-permissions:
-  contents: read
-  pull-requests: write
+permissions: write-all
 jobs:
   gemini-code-review:
     runs-on: ubuntu-latest
@@ -23,7 +21,7 @@ jobs:
 
       - name: Run Gemini AI Code Reviewer
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3.10 review_code_gemini.py

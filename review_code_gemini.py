@@ -60,14 +60,12 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     """Analyzes the code changes using Gemini and generates review comments."""
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
-    #print(f"Files content: {json.dumps(parsed_diff, indent=2)}")
     comments = []
-    print(f"Initial comments list: {comments}")
+    #print(f"Initial comments list: {comments}")
     
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
         print(f"\nProcessing file: {file_path}")
-        #print(f"File data: {json.dumps(file_data, indent=2)}")
 
         if not file_path or file_path == "/dev/null":
             continue
@@ -202,7 +200,6 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
                 print(f"Warning: Line number {line_number} is outside hunk range")
                 continue
                 
-            # Simplified comment structure - removed 'side' field
             comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
@@ -230,7 +227,7 @@ def create_review_comment(
     try:
         # Create the review with only the required fields
         review = pr.create_review(
-            body="AI Code Review Comments",
+            body="Gemini AI Code Reviewer Comments",
             comments=comments,
             event="COMMENT"
         )
@@ -330,7 +327,6 @@ def main():
                 create_review_comment(
                     pr_details.owner, pr_details.repo, pr_details.pull_number, comments
                 )
-                print("***** Create-Alex-Comment *****")  # Debug print
             except Exception as e:
                 print("Error in create_review_comment:", e)
     else:

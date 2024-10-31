@@ -41,54 +41,67 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     """Fetches the diff of the pull request from GitHub API."""
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
-    commit = pr.get_commits().reversed[0]
-    diff = ""
-    for file in commit.files:
-        try:
-            # Try accessing 'content' first
-            current_content = file.raw_data["content"]
-        except KeyError:
-            try:
-                # If 'content' is missing, use 'blob_url'
-                from urllib.request import urlopen
-                with urlopen(file.raw_data["blob_url"]) as f:
-                    current_content = f.read().decode('utf-8')
-            except Exception as e:
-                print(f"Error fetching content for {file.filename}: {e}")
-                continue  # Skip this file if content retrieval fails
-
-        # Generate the diff
-        diff_lines = difflib.unified_diff(
-            file.raw_data.get("content", "").splitlines(keepends=True),  # Handle potential missing 'content'
-            current_content.splitlines(keepends=True),
-            fromfile=file.raw_data.get("filename", "old_file"),
-            tofile=file.filename
-        )
-        diff += ''.join(diff_lines) + "\n"
+    
+    # Get the diff directly from the pull request
+    diff = pr.get_diff()
+    print(f"Retrieved diff length: {len(diff) if diff else 0}")
     return diff
 
 
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
     """Analyzes the code changes using Gemini and generates review comments."""
-    print("Parsed diff:", parsed_diff)
+    print("Starting analyze_code...")
     comments = []
+    
+    # Convert parsed_diff to PatchSet format
+    patch_set = PatchSet()
     for file_data in parsed_diff:
-        file_path = file_data["path"]
-        if file_path == "/dev/null":
-            continue  # Ignore deleted files
-        for hunk_data in file_data["hunks"]:
-            hunk_content = "\n".join(hunk_data["lines"])
-            prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
-            print("Calling get_ai_response...")
+        patched_file = PatchedFile(
+            source_file=f"a/{file_data['path']}", 
+            target_file=f"b/{file_data['path']}"
+        )
+        
+        for hunk_data in file_data.get('hunks', []):
+            # Create a new Hunk object
+            hunk_lines = hunk_data.get('lines', [])
+            if not hunk_lines:
+                continue
+                
+            hunk = Hunk()
+            hunk.source_start = 1  # Default starting line
+            hunk.source_length = len(hunk_lines)
+            hunk.target_start = 1
+            hunk.target_length = len(hunk_lines)
+            hunk.content = '\n'.join(hunk_lines)
+            
+            # Add changes to the hunk
+            for line in hunk_lines:
+                if line.startswith('+'):
+                    hunk.added.append(line[1:])
+                elif line.startswith('-'):
+                    hunk.removed.append(line[1:])
+                else:
+                    hunk.context.append(line)
+                    
+            patched_file.hunks.append(hunk)
+        patch_set.append(patched_file)
+
+    # Now process each file in the patch set
+    for patched_file in patch_set:
+        if patched_file.path == "/dev/null":
+            continue  # Skip deleted files
+            
+        for hunk in patched_file.hunks:
+            prompt = create_prompt(patched_file, hunk, pr_details)
+            print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
-            print("get_ai_response finished!")
+            print(f"Received AI response: {ai_response}")
+            
             if ai_response:
-                # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
-                new_comments = create_comment(file_path, hunk_data, ai_response)
+                new_comments = create_comment(patched_file, hunk, ai_response)
                 if new_comments:
-                    print("New comments generated:", new_comments)
                     comments.extend(new_comments)
-    print("Comments before returning:", comments)
+                    
     return comments
 
 
@@ -179,24 +192,36 @@ def create_review_comment(
     pr.create_review(comments=comments, event="COMMENT")
 
 def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
-    """Parses the diff string using difflib and returns a list of file changes."""
+    """Parses the diff string and returns a structured format."""
     files = []
     current_file = None
-    diff_lines = diff_str.splitlines()
-    for line in diff_lines:
-        if line.startswith("--- a/"):
-            current_file = {"path": line[6:], "hunks": []}
-            files.append(current_file)
-        elif line.startswith("+++ b/"):
-            if current_file is not None:  # Check if current_file is initialized
-                current_file["path"] = line[6:]
-        elif line.startswith("@@"):
-            if current_file is not None:  # Check if current_file is initialized
-                hunk_header = line
-                hunk_lines = []
-                current_file["hunks"].append({"header": hunk_header, "lines": hunk_lines})
-        elif current_file is not None and current_file["hunks"]:  # Check for both conditions
-            current_file["hunks"][-1]["lines"].append(line)
+    current_hunk = None
+    
+    for line in diff_str.splitlines():
+        if line.startswith('diff --git'):
+            if current_file:
+                files.append(current_file)
+            current_file = {'path': '', 'hunks': []}
+            
+        elif line.startswith('--- a/'):
+            if current_file:
+                current_file['path'] = line[6:]
+                
+        elif line.startswith('+++ b/'):
+            if current_file:
+                current_file['path'] = line[6:]
+                
+        elif line.startswith('@@'):
+            if current_file:
+                current_hunk = {'header': line, 'lines': []}
+                current_file['hunks'].append(current_hunk)
+                
+        elif current_hunk is not None:
+            current_hunk['lines'].append(line)
+            
+    if current_file:
+        files.append(current_file)
+        
     return files
 
 

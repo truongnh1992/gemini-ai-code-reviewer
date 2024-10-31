@@ -81,7 +81,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
             prompt = create_prompt(file_path, hunk_content, pr_details)  # Adjust create_prompt accordingly
             print("Calling get_ai_response...")
             ai_response = get_ai_response(prompt)
-            print("get_ai_response finished!")
+            print("Calling get_ai_response finished")
             if ai_response:
                 # Adjust create_comment to use file_path and line numbers from hunk_data["lines"]
                 new_comments = create_comment(file_path, hunk_data, ai_response)
@@ -135,10 +135,11 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
                 # Check if each review item has the required keys
-                # for review in reviews:
-                #     if not ("lineNumber" in review and "reviewComment" in review):
-                #         print(f"Incomplete review item: {review}")
-                #         return []
+                for review in reviews:
+                    if not ("lineNumber" in review and "reviewComment" in review):
+                        print(f"Incomplete review item: {review}")
+                        return []
+                print(reviews)
                 return reviews
             else:
                 print("Error: 'reviews' key not found or is not a list in Gemini response")

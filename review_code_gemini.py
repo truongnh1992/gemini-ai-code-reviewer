@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 import google.generativeai as Client
 from github import Github
 import difflib
+import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
 
@@ -42,10 +43,17 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     
-    # Get the diff directly from the pull request
-    diff = pr.get_diff()
-    print(f"Retrieved diff length: {len(diff) if diff else 0}")
-    return diff
+    # Get the diff using the diff_url
+    headers = {'Authorization': f'token {GITHUB_TOKEN}'}
+    response = requests.get(pr.diff_url, headers=headers)
+    
+    if response.status_code == 200:
+        diff = response.text
+        print(f"Retrieved diff length: {len(diff) if diff else 0}")
+        return diff
+    else:
+        print(f"Failed to get diff. Status code: {response.status_code}")
+        return ""
 
 
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:

@@ -3,7 +3,9 @@ name: Gemini AI Code Reviewer
 on:
   pull_request:
     types: [opened, reopened, synchronize]
-permissions: write-all
+permissions:
+  contents: read
+  pull-requests: write
 jobs:
   gemini-code-review:
     runs-on: ubuntu-latest

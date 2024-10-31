@@ -60,29 +60,21 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     """Analyzes the code changes using Gemini and generates review comments."""
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
-    #print(f"Files content: {json.dumps(parsed_diff, indent=2)}")
     comments = []
-    print(f"Initial comments list: {comments}")
+    #print(f"Initial comments list: {comments}")
     
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
         print(f"\nProcessing file: {file_path}")
-        #print(f"File data: {json.dumps(file_data, indent=2)}")
 
         if not file_path or file_path == "/dev/null":
             continue
-        
-       # Fixed PatchedFile initialization
-        # patched_file = PatchedFile(
-        #     source_file=f"a/{file_path}",
-        #     target_file=f"b/{file_path}",
-        #     is_binary_file=False
-        # )
-        # patched_file.path = file_path  # Set the path explicitly
-        patched_file = PatchedFile()
-        patched_file.path = file_path
-        patched_file.source_file = f"a/{file_path}"
-        patched_file.target_file = f"b/{file_path}"
+
+        class FileInfo:
+            def __init__(self, path):
+                self.path = path
+
+        file_info = FileInfo(file_path)
 
         hunks = file_data.get('hunks', [])
         print(f"Hunks in file: {len(hunks)}")
@@ -90,11 +82,11 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
         for hunk_data in hunks:
             print(f"\nHunk content: {json.dumps(hunk_data, indent=2)}")
             hunk_lines = hunk_data.get('lines', [])
-            print(f"Number of lines in hunk: {len(hunk_lines)}")  # Debug: Check hunk lines
+            print(f"Number of lines in hunk: {len(hunk_lines)}")
+
             if not hunk_lines:
                 continue
                 
-            # Create Hunk object
             hunk = Hunk()
             hunk.source_start = 1
             hunk.source_length = len(hunk_lines)
@@ -102,19 +94,19 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
             hunk.target_length = len(hunk_lines)
             hunk.content = '\n'.join(hunk_lines)
             
-            prompt = create_prompt(patched_file, hunk, pr_details)
+            prompt = create_prompt(file_info, hunk, pr_details)
             print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
-            print(f"AI response received: {ai_response}")  # Debug: Check AI response
+            print(f"AI response received: {ai_response}")
             
             if ai_response:
-                new_comments = create_comment(patched_file, hunk, ai_response)
-                print(f"Comments created from AI response: {new_comments}")  # Debug: Check comment creation
+                new_comments = create_comment(file_info, hunk, ai_response)
+                print(f"Comments created from AI response: {new_comments}")
                 if new_comments:
                     comments.extend(new_comments)
                     print(f"Updated comments list: {comments}")
 
-    print(f"\nFinal comments list: {comments}")  # Debug: Final output
+    print(f"\nFinal comments list: {comments}")
     return comments
 
 
@@ -134,37 +126,39 @@ Pull request title: {pr_details.title}
 Pull request description:
 
 ---
-{pr_details.description}
+{pr_details.description or 'No description provided'}
 ---
 
 Git diff to review:
 
 ```diff
 {hunk.content}
-{chr(10).join([f"{c.ln if c.ln else c.ln2} {c.content}" for c in hunk.changes])}
 ```
 """
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
+    gemini_model=Client.GenerativeModel('gemini-1.5-pro-002')
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
-        response = gemini_client.generate_text(
-            prompt=prompt,
-            model="gemini-1.5-pro-002",
-            temperature=0.2,
-            max_output_tokens=700,
-        )
-        print(f"Raw Gemini response: {response.result}")  # Print raw response
-        prompt += "\nPlease format your response as a JSON object with a 'reviews' array containing objects with 'lineNumber' and 'reviewComment' fields."
+        response = gemini_model.generate_content(prompt)
 
+        response_text = response.text.strip()
+        if response_text.startswith('```json'):
+            response_text = response_text[7:]  # Remove ```json
+        if response_text.endswith('```'):
+            response_text = response_text[:-3]  # Remove ```
+        response_text = response_text.strip()
+        
+        print(f"Cleaned response text: {response_text}")
+        
         try:
-            data = json.loads(response.result.strip())
-            print(f"Parsed JSON data: {data}")  # Debug: Parsed JSON
+            data = json.loads(response_text)
+            print(f"Parsed JSON data: {data}")
+            
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
-                # Validate each review item
                 valid_reviews = []
                 for review in reviews:
                     if "lineNumber" in review and "reviewComment" in review:
@@ -178,26 +172,43 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
                 return []
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON response: {e}")
-            print(f"Raw response: {response.result}")
+            print(f"Raw response: {response_text}")
             return []
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
         return []
 
-def create_comment(file: PatchedFile, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+class FileInfo:
+    """Simple class to hold file information."""
+    def __init__(self, path: str):
+        self.path = path
+
+def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
     print("AI responses in create_comment:", ai_responses)
+    print(f"Hunk details - start: {hunk.source_start}, length: {hunk.source_length}")
+    print(f"Hunk content:\n{hunk.content}")
+    
     comments = []
     for ai_response in ai_responses:
         try:
-            line_number = hunk.source_start + int(ai_response["lineNumber"]) - 1
-            print(f"Creating comment for line: {line_number}")  # Debugging print
-            comments.append({
+            line_number = int(ai_response["lineNumber"])
+            print(f"Original AI suggested line: {line_number}")
+            
+            # Ensure the line number is within the hunk's range
+            if line_number < 1 or line_number > hunk.source_length:
+                print(f"Warning: Line number {line_number} is outside hunk range")
+                continue
+                
+            comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
-                "line": line_number,
-            })
-        except (KeyError, TypeError, ValueError) as e:  # Catch ValueError for line number conversion
+                "position": line_number
+            }
+            print(f"Created comment: {json.dumps(comment, indent=2)}")
+            comments.append(comment)
+            
+        except (KeyError, TypeError, ValueError) as e:
             print(f"Error creating comment from AI response: {e}, Response: {ai_response}")
     return comments
 
@@ -214,10 +225,17 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     try:
-        review = pr.create_review(comments=comments, event="COMMENT")
-        print(f"Review created successfully: {review}")
+        # Create the review with only the required fields
+        review = pr.create_review(
+            body="Gemini AI Code Reviewer Comments",
+            comments=comments,
+            event="COMMENT"
+        )
+        print(f"Review created successfully with ID: {review.id}")
+        
     except Exception as e:
         print(f"Error creating review: {str(e)}")
+        print(f"Error type: {type(e)}")
         print(f"Review payload: {comments}")
 
 def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
@@ -309,7 +327,6 @@ def main():
                 create_review_comment(
                     pr_details.owner, pr_details.repo, pr_details.pull_number, comments
                 )
-                print("***** Create-Alex-Comment *****")  # Debug print
             except Exception as e:
                 print("Error in create_review_comment:", e)
     else:

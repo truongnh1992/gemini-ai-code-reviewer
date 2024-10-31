@@ -60,7 +60,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     """Analyzes the code changes using Gemini and generates review comments."""
     print("Starting analyze_code...")
     comments = []
-    print(comments)
+    print(f"Initial comments list: {comments}")
     
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
@@ -98,6 +98,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
                 new_comments = create_comment(patched_file, hunk, ai_response)
                 if new_comments:
                     comments.extend(new_comments)
+                    print(f"Updated comments after adding new ones: {comments}")
                     
     return comments
 

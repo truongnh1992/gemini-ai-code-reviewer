@@ -136,7 +136,7 @@ Pull request title: {pr_details.title}
 Pull request description:
 
 ---
-{pr_details.description}
+{pr_details.description or 'No description provided'}
 ---
 
 Git diff to review:
@@ -151,17 +151,17 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
-        response = gemini_client.generate_text(
+        response = gemini_client.generate_content(
             prompt=prompt,
             model="gemini-1.5-pro-002",
             temperature=0.2,
             max_output_tokens=700,
         )
-        print(f"Raw Gemini response: {response.result}")  # Print raw response
+        print(f"Raw Gemini response: {response.text}")  # Print raw response
         prompt += "\nPlease format your response as a JSON object with a 'reviews' array containing objects with 'lineNumber' and 'reviewComment' fields."
 
         try:
-            data = json.loads(response.result.strip())
+            data = json.loads(response.text.strip())
             print(f"Parsed JSON data: {data}")  # Debug: Parsed JSON
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]

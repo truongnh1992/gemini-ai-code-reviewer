@@ -13,6 +13,7 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 # Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)
 gemini_client = Client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+gemini_model=Client.GenerativeModel('gemini-1.5-pro-002'),
 
 
 class PRDetails:
@@ -71,15 +72,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
         if not file_path or file_path == "/dev/null":
             continue
-        
-       # Fixed PatchedFile initialization
-        # patched_file = PatchedFile(
-        #     source_file=f"a/{file_path}",
-        #     target_file=f"b/{file_path}",
-        #     is_binary_file=False
-        # )
-        # patched_file.path = file_path  # Set the path explicitly
-        # Create a simple object to hold the file path
+
         class FileInfo:
             def __init__(self, path):
                 self.path = path
@@ -151,9 +144,8 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
-        response = gemini_client.generate_content(
+        response = gemini_model.generate_content(
             prompt=prompt,
-            model=Client.GenerativeModel(model_name="gemini-1.5-pro-002"),
             temperature=0.2,
             max_output_tokens=700,
         )

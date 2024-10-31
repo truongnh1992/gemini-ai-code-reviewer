@@ -13,7 +13,6 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 # Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)
 gemini_client = Client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
-gemini_model=Client.GenerativeModel('gemini-1.5-pro-002')
 
 
 class PRDetails:
@@ -141,6 +140,7 @@ Git diff to review:
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
+    gemini_model=Client.GenerativeModel('gemini-1.5-pro-002')
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
@@ -202,11 +202,11 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
                 print(f"Warning: Line number {line_number} is outside hunk range")
                 continue
                 
+            # Simplified comment structure - removed 'side' field
             comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
-                "position": line_number,
-                "side": "RIGHT"
+                "position": line_number
             }
             print(f"Created comment: {json.dumps(comment, indent=2)}")
             comments.append(comment)
@@ -228,7 +228,7 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     try:
-        # Create the review
+        # Create the review with only the required fields
         review = pr.create_review(
             body="AI Code Review Comments",
             comments=comments,

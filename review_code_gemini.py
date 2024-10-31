@@ -61,45 +61,33 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     print("Starting analyze_code...")
     comments = []
     
-    # Convert parsed_diff to PatchSet format
-    patch_set = PatchSet()
     for file_data in parsed_diff:
+        file_path = file_data.get('path', '')
+        if not file_path or file_path == "/dev/null":
+            continue  # Skip files without path or deleted files
+            
+        print(f"Processing file: {file_path}")
+        
+        # Create PatchedFile object
         patched_file = PatchedFile(
-            source_file=f"a/{file_data['path']}", 
-            target_file=f"b/{file_data['path']}"
+            source_file=f"a/{file_path}",
+            target_file=f"b/{file_path}"
         )
+        patched_file.path = file_path  # Set the path explicitly
         
         for hunk_data in file_data.get('hunks', []):
-            # Create a new Hunk object
             hunk_lines = hunk_data.get('lines', [])
             if not hunk_lines:
                 continue
                 
+            # Create Hunk object
             hunk = Hunk()
-            hunk.source_start = 1  # Default starting line
+            hunk.source_start = 1
             hunk.source_length = len(hunk_lines)
             hunk.target_start = 1
             hunk.target_length = len(hunk_lines)
             hunk.content = '\n'.join(hunk_lines)
             
-            # Add changes to the hunk
-            for line in hunk_lines:
-                if line.startswith('+'):
-                    hunk.added.append(line[1:])
-                elif line.startswith('-'):
-                    hunk.removed.append(line[1:])
-                else:
-                    hunk.context.append(line)
-                    
-            patched_file.hunks.append(hunk)
-        patch_set.append(patched_file)
-
-    # Now process each file in the patch set
-    for patched_file in patch_set:
-        if patched_file.path == "/dev/null":
-            continue  # Skip deleted files
-            
-        for hunk in patched_file.hunks:
             prompt = create_prompt(patched_file, hunk, pr_details)
             print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
@@ -156,10 +144,10 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
                 # Check if each review item has the required keys
-                # for review in reviews:
-                #     if not ("lineNumber" in review and "reviewComment" in review):
-                #         print(f"Incomplete review item: {review}")
-                #         return []
+                for review in reviews:
+                    if not ("lineNumber" in review and "reviewComment" in review):
+                        print(f"Incomplete review item: {review}")
+                        return []
                 return reviews
             else:
                 print("Error: 'reviews' key not found or is not a list in Gemini response")
@@ -254,8 +242,9 @@ def main():
         filtered_diff = [
             file
             for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.path or "", pattern) for pattern in exclude_patterns)
+            if not any(fnmatch.fnmatch(file.get('path', ''), pattern) for pattern in exclude_patterns)
         ]
+        print(f"Filtered diff, number of files: {len(filtered_diff)}")
 
         comments = analyze_code(filtered_diff, pr_details)
         if comments:

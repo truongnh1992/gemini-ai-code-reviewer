@@ -180,6 +180,11 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
         print(f"Error during Gemini API call: {e}")
         return []
 
+class FileInfo:
+    """Simple class to hold file information."""
+    def __init__(self, path: str):
+        self.path = path
+
 def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]]) -> List[Dict[str, Any]]:
     """Creates comment objects from AI responses."""
     print("AI responses in create_comment:", ai_responses)
@@ -197,7 +202,6 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
                 print(f"Warning: Line number {line_number} is outside hunk range")
                 continue
                 
-            # Create the comment with the correct fields
             comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,

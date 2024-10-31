@@ -104,6 +104,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
     return f"""Your task is reviewing pull requests. Instructions:
+    - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Do not give positive comments or compliments.
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
     - Write the comment in GitHub Markdown format.
@@ -139,21 +140,27 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             max_output_tokens=700,
         )
         print(f"Raw Gemini response: {response.result}")  # Print raw response
+        prompt += "\nPlease format your response as a JSON object with a 'reviews' array containing objects with 'lineNumber' and 'reviewComment' fields."
+
         try:
             data = json.loads(response.result.strip())
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
-                # Check if each review item has the required keys
+                # Validate each review item
+                valid_reviews = []
                 for review in reviews:
-                    if not ("lineNumber" in review and "reviewComment" in review):
-                        print(f"Incomplete review item: {review}")
-                        return []
-                return reviews
+                    if "lineNumber" in review and "reviewComment" in review:
+                        valid_reviews.append(review)
+                    else:
+                        print(f"Invalid review format: {review}")
+                return valid_reviews
             else:
-                print("Error: 'reviews' key not found or is not a list in Gemini response")
+                print("Error: Response doesn't contain valid 'reviews' array")
+                print(f"Response content: {data}")
                 return []
         except json.JSONDecodeError as e:
-            print(f"Error decoding Gemini response: {e}")
+            print(f"Error decoding JSON response: {e}")
+            print(f"Raw response: {response.result}")
             return []
     except Exception as e:
         print(f"Error during Gemini API call: {e}")
@@ -183,9 +190,17 @@ def create_review_comment(
     comments: List[Dict[str, Any]],
 ):
     """Submits the review comments to the GitHub API."""
+    print(f"Attempting to create {len(comments)} review comments")
+    print(f"Comments content: {json.dumps(comments, indent=2)}")
+
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
-    pr.create_review(comments=comments, event="COMMENT")
+    try:
+        review = pr.create_review(comments=comments, event="COMMENT")
+        print(f"Review created successfully: {review}")
+    except Exception as e:
+        print(f"Error creating review: {str(e)}")
+        print(f"Review payload: {comments}")
 
 def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
     """Parses the diff string and returns a structured format."""

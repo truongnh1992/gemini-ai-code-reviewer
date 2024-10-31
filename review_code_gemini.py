@@ -245,7 +245,7 @@ def main():
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
     if event_data["action"] == "opened":
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
-        #print("===== Diff =====:", diff)
+        print("===== Diff =====:", diff)
         if not diff:
             print("No diff found")
             return
@@ -282,7 +282,7 @@ def main():
         filtered_diff = [
             file
             for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.path or "", pattern) for pattern in exclude_patterns)
+            if not any(fnmatch.fnmatch(file.get('path', ''), pattern) for pattern in exclude_patterns)
         ]
 
         comments = analyze_code(filtered_diff, pr_details)

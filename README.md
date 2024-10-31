@@ -40,7 +40,7 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json" # Optional: exclude patterns separated by commas
+          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,.github/workflows/*.yml,*.yaml,.github/workflows/*.yaml" # Optional: exclude patterns separated by commas
 ```
 
 4. Commit codes to your repository, and `Gemini AI Code Reviewer` will start working on your pull requests.

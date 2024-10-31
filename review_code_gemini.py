@@ -40,12 +40,22 @@ def get_pr_details() -> PRDetails:
 
 def get_diff(owner: str, repo: str, pull_number: int) -> str:
     """Fetches the diff of the pull request from GitHub API."""
-    repo = gh.get_repo(f"{owner}/{repo}")
+    # Use the correct repository name format
+    repo_name = f"{owner}/{repo}"
+    print(f"Attempting to get diff for: {repo_name} PR#{pull_number}")
+
+    repo = gh.get_repo(repo_name)
     pr = repo.get_pull(pull_number)
     
-    # Get the diff using the diff_url
-    headers = {'Authorization': f'token {GITHUB_TOKEN}'}
-    response = requests.get(pr.diff_url, headers=headers)
+    # Use the GitHub API URL directly
+    api_url = f"https://api.github.com/repos/{repo_name}/pulls/{pull_number}"
+
+    headers = {
+        'Authorization': f'Bearer {GITHUB_TOKEN}',  # Changed to Bearer format
+        'Accept': 'application/vnd.github.v3.diff'
+    }
+
+    response = requests.get(f"{api_url}.diff", headers=headers)
     
     if response.status_code == 200:
         diff = response.text
@@ -53,6 +63,8 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
         return diff
     else:
         print(f"Failed to get diff. Status code: {response.status_code}")
+        print(f"Response content: {response.text}")
+        print(f"URL attempted: {api_url}.diff")
         return ""
 
 

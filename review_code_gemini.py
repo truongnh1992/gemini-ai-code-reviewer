@@ -28,9 +28,18 @@ def get_pr_details() -> PRDetails:
     """Retrieves details of the pull request from GitHub Actions event payload."""
     with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
         event_data = json.load(f)
-    repo_full_name = event_data["repository"]["full_name"]
+
+    # Handle comment trigger differently from direct PR events
+    if "issue" in event_data and "pull_request" in event_data["issue"]:
+        # For comment triggers, we need to get the PR number from the issue
+        pull_number = event_data["issue"]["number"]
+        repo_full_name = event_data["repository"]["full_name"]
+    else:
+        # Original logic for direct PR events
+        pull_number = event_data["number"]
+        repo_full_name = event_data["repository"]["full_name"]
+
     owner, repo = repo_full_name.split("/")
-    pull_number = event_data["number"]
 
     repo = gh.get_repo(repo_full_name)
     pr = repo.get_pull(pull_number)
@@ -289,34 +298,17 @@ def main():
     """Main function to execute the code review process."""
     pr_details = get_pr_details()
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
-    if event_data["action"] == "opened":
+
+    event_name = os.environ.get("GITHUB_EVENT_NAME")
+    if event_name == "issue_comment":
+        # Process comment trigger
+        if not event_data.get("issue", {}).get("pull_request"):
+            print("Comment was not on a pull request")
+            return
+
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
         if not diff:
             print("There is no diff found")
-            return
-
-        parsed_diff = parse_diff(diff)
-        print("Hello world")
-
-        exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
-        exclude_patterns = [s.strip() for s in exclude_patterns]
-
-        filtered_diff = [
-            file
-            for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.get('path', ''), pattern) for pattern in exclude_patterns)
-        ]
-        print(f"Filtered diff, number of files: {len(filtered_diff)}")
-
-        comments = analyze_code(filtered_diff, pr_details)
-        if comments:
-            create_review_comment(
-                pr_details.owner, pr_details.repo, pr_details.pull_number, comments
-            )
-    elif event_data["action"] == "synchronize":
-        diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
-        if not diff:
-            print("No diff found")
             return
 
         parsed_diff = parse_diff(diff)

@@ -296,6 +296,7 @@ def main():
             return
 
         parsed_diff = parse_diff(diff)
+        print("Hello world")
 
         exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
         exclude_patterns = [s.strip() for s in exclude_patterns]

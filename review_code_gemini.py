@@ -135,11 +135,10 @@ def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
     return f"""Your task is reviewing pull requests. Instructions:
     - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
-    - Do not give positive comments or compliments.
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
-    - Write the comment in GitHub Markdown format.
-    - Use the given description only for the overall context and only comment the code.
-    - IMPORTANT: NEVER suggest adding comments to the code.
+    - Use GitHub Markdown in comments
+    - Focus on bugs, security issues, and performance problems
+    - IMPORTANT: NEVER suggest adding comments to the code
 
 Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
   
@@ -216,15 +215,14 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
             line_number = int(ai_response["lineNumber"])
             print(f"Original AI suggested line: {line_number}")
             
-            # Ensure the line number is within the hunk's range
-            if line_number < 1 or line_number > hunk.source_length:
-                print(f"Warning: Line number {line_number} is outside hunk range")
-                continue
+            # Adjust line number to be relative to the hunk's starting position
+            adjusted_line_number = hunk.source_start + line_number - 1
+            print(f"Adjusted line number: {adjusted_line_number}")
                 
             comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
-                "position": line_number
+                "position": adjusted_line_number
             }
             print(f"Created comment: {json.dumps(comment, indent=2)}")
             comments.append(comment)

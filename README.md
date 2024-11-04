@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Run Gemini AI Code Reviewer
         uses: truongnh1992/gemini-ai-code-reviewer@latest
@@ -43,8 +43,9 @@ jobs:
           INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml" # Optional: exclude patterns separated by commas
 ```
 
-4. Commit codes to your repository, and `Gemini AI Code Reviewer` will start working on your pull requests.
-   
+4. Commit codes to your repository, and working on your pull requests.
+5. When you're ready to review the PR, you can trigger the workflow by commenting `/gemini-review` in the PR.
+
 ## How It Works
 
 This GitHub Action uses the Gemini AI API to provide code review feedback. It works by:

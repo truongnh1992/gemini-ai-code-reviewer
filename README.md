@@ -23,24 +23,43 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 name: Gemini AI Code Reviewer
 
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
+  issue_comment:
+    types: [created]
+
 permissions: write-all
+
 jobs:
-  review:
-    runs-on: ubuntu-latest
+  gemini-code-review:
+    runs-on: [self-hosted, wati-runner-trial-whatsapp-inbox]
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/gemini-review')
     steps:
+      - name: PR Info
+        run: |
+          echo "Comment: ${{ github.event.comment.body }}"
+          echo "Issue Number: ${{ github.event.issue.number }}"
+          echo "Repository: ${{ github.repository }}"
+
       - name: Checkout Repo
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Run Gemini AI Code Reviewer
-        uses: truongnh1992/gemini-ai-code-reviewer@latest
+      - name: Get PR Details
+        id: pr
+        run: |
+          PR_JSON=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
+          echo "head_sha=$(echo $PR_JSON | jq -r .head.sha)" >> $GITHUB_OUTPUT
+          echo "base_sha=$(echo $PR_JSON | jq -r .base.sha)" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: truongnh1992/gemini-ai-code-reviewer@latest
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml" # Optional: exclude patterns separated by commas
+          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
 ```
 
 4. Commit codes to your repository, and working on your pull requests.

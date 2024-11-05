@@ -30,7 +30,7 @@ permissions: write-all
 
 jobs:
   gemini-code-review:
-    runs-on: [self-hosted, wati-runner-trial-whatsapp-inbox]
+    runs-on: ubuntu-latest
     if: |
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '/gemini-review')

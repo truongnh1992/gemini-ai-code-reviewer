@@ -4,7 +4,7 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 
 ## Features
 
-- Review your PRs using Gemini API (model `gemini-1.5-pro-002`)
+- Review your PRs using Gemini API
 - Give use comments and suggestions to improve the source codes
 
 ![Demo](./Demo.png)
@@ -59,9 +59,10 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-1.5-pro-002 # Optional, default is `gemini-1.5-flash-002`
           INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
 ```
-
+> if you don't set `GEMINI_MODEL`, the default model is `gemini-1.5-flash-002`. `gemini-1.5-flash-002` can be used for generating code, extracting data, edit text, and more. Best for tasks balancing performance and cost. For the detailed information about the models, please refer to [Gemini models](https://ai.google.dev/gemini-api/docs/models/gemini).
 4. Commit codes to your repository, and working on your pull requests.
 5. When you're ready to review the PR, you can trigger the workflow by commenting `/gemini-review` in the PR.
 

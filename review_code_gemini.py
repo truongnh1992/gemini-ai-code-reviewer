@@ -158,7 +158,8 @@ Git diff to review:
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
-    gemini_model=Client.GenerativeModel('gemini-1.5-pro-002')
+    # Use 'gemini-1.5-flash-002' as a fallback default value if the environment variable isn't set
+    gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash-002'))
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:

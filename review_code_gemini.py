@@ -133,12 +133,19 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Gemini model."""
-    return f"""Your task is reviewing pull requests. Instructions:
+    return f"""You are an experienced software engineer.
+
+You are tasked to review a pull request from one of your peers.
+You only comment on code that you found in the pull request diff.
+Provide a code review with suggestions for the most impactful 
+improvements based on the pull request in the following Git diff.
+Instructions:
     - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
     - Use GitHub Markdown in comments
-    - Focus on bugs, security issues, and performance problems
     - IMPORTANT: NEVER suggest adding comments to the code
+    - IMPORTANT: Ignore code comment "// Package imports:" , "// Project imports:", "// Flutter imports:"
+    
 
 Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
   

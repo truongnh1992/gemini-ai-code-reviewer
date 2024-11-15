@@ -7,7 +7,7 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 - Review your PRs using Gemini API
 - Give use comments and suggestions to improve the source codes
 
-![Demo](./Demo.png)
+![Demo](./demo-command.png)
 
 ## Setup
 

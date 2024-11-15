@@ -7,7 +7,7 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 - Review your PRs using Gemini API
 - Give use comments and suggestions to improve the source codes
 
-![Demo](./Demo.png)
+![Demo](./demo-command.png)
 
 ## Setup
 
@@ -55,7 +55,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: truongnh1992/gemini-ai-code-reviewer@latest
+      - uses: HoangNguyen0403/gemini-ai-code-reviewer@v0.0.3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

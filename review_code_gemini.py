@@ -55,7 +55,7 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
 
     repo = gh.get_repo(repo_name)
     pr = repo.get_pull(pull_number)
-    
+
     # Use the GitHub API URL directly
     api_url = f"https://api.github.com/repos/{repo_name}/pulls/{pull_number}"
 
@@ -65,7 +65,7 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     }
 
     response = requests.get(f"{api_url}.diff", headers=headers)
-    
+
     if response.status_code == 200:
         diff = response.text
         print(f"Retrieved diff length: {len(diff) if diff else 0}")
@@ -83,7 +83,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     print(f"Number of files to analyze: {len(parsed_diff)}")
     comments = []
     #print(f"Initial comments list: {comments}")
-    
+
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
         print(f"\nProcessing file: {file_path}")
@@ -99,7 +99,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
         hunks = file_data.get('hunks', [])
         print(f"Hunks in file: {len(hunks)}")
-        
+
         for hunk_data in hunks:
             print(f"\nHunk content: {json.dumps(hunk_data, indent=2)}")
             hunk_lines = hunk_data.get('lines', [])
@@ -107,19 +107,19 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
             if not hunk_lines:
                 continue
-                
+
             hunk = Hunk()
             hunk.source_start = 1
             hunk.source_length = len(hunk_lines)
             hunk.target_start = 1
             hunk.target_length = len(hunk_lines)
             hunk.content = '\n'.join(hunk_lines)
-            
+
             prompt = create_prompt(file_info, hunk, pr_details)
             print("Sending prompt to Gemini...")
             ai_response = get_ai_response(prompt)
             print(f"AI response received: {ai_response}")
-            
+
             if ai_response:
                 new_comments = create_comment(file_info, hunk, ai_response)
                 print(f"Comments created from AI response: {new_comments}")
@@ -141,7 +141,7 @@ def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     - IMPORTANT: NEVER suggest adding comments to the code
 
 Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
-  
+
 Pull request title: {pr_details.title}
 Pull request description:
 
@@ -160,10 +160,17 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
     # Use 'gemini-1.5-flash-002' as a fallback default value if the environment variable isn't set
     gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-1.5-flash-002'))
+
+    generation_config = {
+        "max_output_tokens": 8192,
+        "temperature": 0.8,
+        "top_p": 0.95,
+    }
+
     print("===== The promt sent to Gemini is: =====")
     print(prompt)
     try:
-        response = gemini_model.generate_content(prompt)
+        response = gemini_model.generate_content(prompt, generation_config=generation_config)
 
         response_text = response.text.strip()
         if response_text.startswith('```json'):
@@ -171,13 +178,13 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
         if response_text.endswith('```'):
             response_text = response_text[:-3]  # Remove ```
         response_text = response_text.strip()
-        
+
         print(f"Cleaned response text: {response_text}")
-        
+
         try:
             data = json.loads(response_text)
             print(f"Parsed JSON data: {data}")
-            
+
             if "reviews" in data and isinstance(data["reviews"], list):
                 reviews = data["reviews"]
                 valid_reviews = []
@@ -209,18 +216,18 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
     print("AI responses in create_comment:", ai_responses)
     print(f"Hunk details - start: {hunk.source_start}, length: {hunk.source_length}")
     print(f"Hunk content:\n{hunk.content}")
-    
+
     comments = []
     for ai_response in ai_responses:
         try:
             line_number = int(ai_response["lineNumber"])
             print(f"Original AI suggested line: {line_number}")
-            
+
             # Ensure the line number is within the hunk's range
             if line_number < 1 or line_number > hunk.source_length:
                 print(f"Warning: Line number {line_number} is outside hunk range")
                 continue
-                
+
             comment = {
                 "body": ai_response["reviewComment"],
                 "path": file.path,
@@ -228,7 +235,7 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
             }
             print(f"Created comment: {json.dumps(comment, indent=2)}")
             comments.append(comment)
-            
+
         except (KeyError, TypeError, ValueError) as e:
             print(f"Error creating comment from AI response: {e}, Response: {ai_response}")
     return comments
@@ -253,7 +260,7 @@ def create_review_comment(
             event="COMMENT"
         )
         print(f"Review created successfully with ID: {review.id}")
-        
+
     except Exception as e:
         print(f"Error creating review: {str(e)}")
         print(f"Error type: {type(e)}")
@@ -264,32 +271,32 @@ def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
     files = []
     current_file = None
     current_hunk = None
-    
+
     for line in diff_str.splitlines():
         if line.startswith('diff --git'):
             if current_file:
                 files.append(current_file)
             current_file = {'path': '', 'hunks': []}
-            
+
         elif line.startswith('--- a/'):
             if current_file:
                 current_file['path'] = line[6:]
-                
+
         elif line.startswith('+++ b/'):
             if current_file:
                 current_file['path'] = line[6:]
-                
+
         elif line.startswith('@@'):
             if current_file:
                 current_hunk = {'header': line, 'lines': []}
                 current_file['hunks'].append(current_hunk)
-                
+
         elif current_hunk is not None:
             current_hunk['lines'].append(line)
-            
+
     if current_file:
         files.append(current_file)
-        
+
     return files
 
 

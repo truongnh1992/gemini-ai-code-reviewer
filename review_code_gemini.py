@@ -140,6 +140,16 @@ def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     - Focus on bugs, security issues, and performance problems
     - IMPORTANT: NEVER suggest adding comments to the code
 
+    MongoDB Atlas Specific Rules:
+    - All index creation commands MUST include {{background: true}} to avoid blocking operations
+    - Atlas Search index creation commands will be DENIED
+    - Index creation is STRICTLY FORBIDDEN in the following production clusters:
+        * mt-prod-archive
+        * mt-prod-ce-archive
+        * mt-prod-ce
+        * mt-prod-bclink
+        * mt-prod-bclink-archive
+
 Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
 
 Pull request title: {pr_details.title}

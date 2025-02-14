@@ -63,7 +63,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-1.5-pro-002 # Optional, default is `gemini-1.5-flash-002`
-          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
+          EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
 ```
 > if you don't set `GEMINI_MODEL`, the default model is `gemini-2.0-flash-001`. `gemini-1.5-flash-002` is a next-generation model offering speed and multimodal generation capabilities.  It's suitable for a wide variety of tasks, including code generation, data extraction, and text editing.. For the detailed information about the models, please refer to [Gemini models](https://ai.google.dev/gemini-api/docs/models/gemini).
 4. Commit codes to your repository, and working on your pull requests.

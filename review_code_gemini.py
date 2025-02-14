@@ -320,15 +320,28 @@ def main():
 
         parsed_diff = parse_diff(diff)
 
-        exclude_patterns = os.environ.get("INPUT_EXCLUDE", "").split(",")
-        exclude_patterns = [s.strip() for s in exclude_patterns]
+        # Get and clean exclude patterns, handle empty input
+        exclude_patterns_raw = os.environ.get("INPUT_EXCLUDE", "")
+        print(f"Raw exclude patterns: {exclude_patterns_raw}")  # Debug log
+        
+        # Only split if we have a non-empty string
+        exclude_patterns = []
+        if exclude_patterns_raw and exclude_patterns_raw.strip():
+            exclude_patterns = [p.strip() for p in exclude_patterns_raw.split(",") if p.strip()]
+        print(f"Exclude patterns: {exclude_patterns}")  # Debug log
 
-        filtered_diff = [
-            file
-            for file in parsed_diff
-            if not any(fnmatch.fnmatch(file.get('path', ''), pattern) for pattern in exclude_patterns)
-        ]
+        # Filter files before analysis
+        filtered_diff = []
+        for file in parsed_diff:
+            file_path = file.get('path', '')
+            should_exclude = any(fnmatch.fnmatch(file_path, pattern) for pattern in exclude_patterns)
+            if should_exclude:
+                print(f"Excluding file: {file_path}")  # Debug log
+                continue
+            filtered_diff.append(file)
 
+        print(f"Files to analyze after filtering: {[f.get('path', '') for f in filtered_diff]}")  # Debug log
+        
         comments = analyze_code(filtered_diff, pr_details)
         if comments:
             try:

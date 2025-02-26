@@ -1,0 +1,201 @@
+import os
+import json
+import openai
+from unidiff import Hunk
+
+# This script simulates a code review for a Vue component
+# You need to set the OPENAI_API_KEY environment variable before running this script
+
+# Check if OPENAI_API_KEY is set
+if not os.environ.get('OPENAI_API_KEY'):
+    print("Error: OPENAI_API_KEY environment variable is not set.")
+    print("Please set it with: export OPENAI_API_KEY='your-api-key'")
+    exit(1)
+
+# Initialize OpenAI client
+openai.api_key = os.environ.get('OPENAI_API_KEY')
+
+# Simulate a diff for the Vue component (as if it was added in a PR)
+# This is a simplified version of what would be in a real PR diff
+sample_diff = """@@ -0,0 +1,120 @@
++<template>
++  <div class="todo-list">
++    <h1>{{ title }}</h1>
++    <div class="input-container">
++      <input 
++        type="text" 
++        v-model="newTodo" 
++        @keyup.enter="addTodo"
++        placeholder="Add a new task..."
++      />
++      <button @click="addTodo">Add</button>
++    </div>
++    <ul class="todo-items">
++      <li 
++        v-for="(todo, index) in todos" 
++        :key="index"
++        :class="{ completed: todo.completed }"
++      >
++        <input 
++          type="checkbox" 
++          v-model="todo.completed"
++        />
++        <span>{{ todo.text }}</span>
++        <button @click="removeTodo(index)">Delete</button>
++      </li>
++    </ul>
++    <div class="todo-stats">
++      <p>{{ remainingTodos }} items left</p>
++      <button @click="clearCompleted">Clear completed</button>
++    </div>
++  </div>
++</template>
++
++<script>
++export default {
++  name: 'TodoList',
++  data() {
++    return {
++      title: 'My Todo List',
++      newTodo: '',
++      todos: [],
++      // This variable is unused and could be flagged in a code review
++      unusedVar: 'This is not used anywhere',
++    }
++  },
++  computed: {
++    remainingTodos() {
++      return this.todos.filter(todo => !todo.completed).length
++    }
++  },
++  methods: {
++    addTodo() {
++      if (this.newTodo.trim()) {
++        this.todos.push({
++          text: this.newTodo,
++          completed: false
++        })
++        this.newTodo = ''
++      }
++    },
++    removeTodo(index) {
++      this.todos.splice(index, 1)
++    },
++    clearCompleted() {
++      this.todos = this.todos.filter(todo => !todo.completed)
++    }
++  },
++  // Potential security issue: using localStorage without sanitization
++  mounted() {
++    const savedTodos = localStorage.getItem('todos')
++    if (savedTodos) {
++      this.todos = JSON.parse(savedTodos)
++    }
++  },
++  // Potential performance issue: watching the entire todos array
++  watch: {
++    todos: {
++      handler() {
++        localStorage.setItem('todos', JSON.stringify(this.todos))
++      },
++      deep: true
++    }
++  }
++}
++</script>"""
+
+# Create a mock hunk
+hunk = Hunk()
+hunk.source_start = 0
+hunk.source_length = 0
+hunk.target_start = 1
+hunk.target_length = 120
+hunk.content = sample_diff
+
+# Create a mock file
+class MockFile:
+    def __init__(self, path):
+        self.path = path
+
+file = MockFile("src/components/TodoList.vue")
+
+# Create a mock PR details
+class MockPRDetails:
+    def __init__(self):
+        self.title = "Add Todo List Component"
+        self.description = "This PR adds a new Vue component for managing todo lists."
+
+pr_details = MockPRDetails()
+
+# Create the prompt
+prompt = f"""Your task is reviewing pull requests. Instructions:
+    - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
+    - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
+    - Use GitHub Markdown in comments
+    - Focus on bugs, security issues, and performance problems
+    - IMPORTANT: NEVER suggest adding comments to the code
+
+Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
+
+Pull request title: {pr_details.title}
+Pull request description:
+
+---
+{pr_details.description}
+---
+
+Git diff to review:
+
+```diff
+{hunk.content}
+```
+"""
+
+print("Sending prompt to OpenAI for Vue component review...")
+try:
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an expert code reviewer specializing in Vue.js applications. Provide feedback in the requested JSON format."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.7,
+        max_tokens=4000
+    )
+
+    response_text = response.choices[0].message.content.strip()
+    print("\nRaw response from OpenAI:")
+    print(response_text)
+
+    # Clean up the response if it's wrapped in markdown code blocks
+    if response_text.startswith('```json'):
+        response_text = response_text[7:]  # Remove ```json
+    if response_text.endswith('```'):
+        response_text = response_text[:-3]  # Remove ```
+    response_text = response_text.strip()
+
+    print("\nCleaned response:")
+    print(response_text)
+
+    # Parse the JSON response
+    try:
+        data = json.loads(response_text)
+        print("\nParsed JSON data:")
+        print(json.dumps(data, indent=2))
+
+        if "reviews" in data and isinstance(data["reviews"], list):
+            reviews = data["reviews"]
+            print("\nReview comments:")
+            for review in reviews:
+                if "lineNumber" in review and "reviewComment" in review:
+                    print(f"Line {review['lineNumber']}: {review['reviewComment']}")
+                else:
+                    print(f"Invalid review format: {review}")
+        else:
+            print("Error: Response doesn't contain valid 'reviews' array")
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON response: {e}")
+except Exception as e:
+    print(f"Error during OpenAI API call: {e}")
+
+print("\nTest completed.")

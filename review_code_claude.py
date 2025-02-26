@@ -7,10 +7,10 @@ import difflib
 import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
-from dotenv import load_dotenv
+# from dotenv import load_dotenv // for local env only
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv() // for local env only
 
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 

@@ -13,7 +13,7 @@ inputs:
     description: 'The Gemini model to use for code review'
     required: false
     default: 'gemini-1.5-flash-002'
-  INPUT_EXCLUDE:
+  EXCLUDE:
     description: 'Comma-separated list of file patterns to exclude'
     required: false
     default: ''
@@ -37,5 +37,5 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
-        INPUT_EXCLUDE: ${{ inputs.EXCLUDE }}
+        EXCLUDE: ${{ inputs.EXCLUDE }}
       run: python ${{ github.action_path }}/review_code_gemini.py

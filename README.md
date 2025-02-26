@@ -67,6 +67,25 @@ jobs:
 4. Commit codes to your repository, and working on your pull requests.
 5. When you're ready to review the PR, you can trigger the workflow by commenting `/openai-review` in the PR.
 
+## Alternative Workflow Files
+
+This repository includes two ready-to-use workflow files that you can download and add to your project:
+
+1. **General Code Review Workflow**: [openai-code-review-workflow.yml](https://github.com/Tomas-Jankauskas/ai-code-reviewer/blob/main/openai-code-review-workflow.yml)
+   - Triggered by commenting `/openai-review` on a PR
+   - Reviews all code changes except common non-code files
+
+2. **Vue Component Review Workflow**: [vue-code-review-workflow.yml](https://github.com/Tomas-Jankauskas/ai-code-reviewer/blob/feature/improved-todo-component/vue-code-review-workflow.yml)
+   - Triggered by commenting `/openai-review-vue` on a PR
+   - Specifically focuses on Vue component files
+   - Ignores non-code files like markdown, JSON, YAML, etc.
+
+To use these workflows:
+1. Download the desired workflow file
+2. Create a `.github/workflows` directory in your repository
+3. Place the workflow file in the `.github/workflows` directory
+4. Add your OpenAI API key as a repository secret named `OPENAI_API_KEY`
+
 ## How It Works
 
 This GitHub Action uses the OpenAI API to provide code review feedback. It works by:

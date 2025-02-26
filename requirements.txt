@@ -4,3 +4,9 @@ unidiff
 requests
 github3.py==1.3.0
 python-dotenv
+langchain
+langchain-anthropic
+langchain-community
+faiss-cpu
+sentence-transformers
+transformers

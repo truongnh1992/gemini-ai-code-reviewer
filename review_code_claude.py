@@ -7,6 +7,7 @@ import difflib
 import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
+from embeddings_store import GuidelinesStore
 # from dotenv import load_dotenv // for local env only
 
 # Load environment variables from .env file
@@ -25,6 +26,9 @@ ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 gh = Github(GITHUB_TOKEN)
 claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+# Initialize guidelines store
+guidelines_store = GuidelinesStore()
+guidelines_store.initialize_from_markdown('coding_guidelines.md')
 
 class PRDetails:
     def __init__(self, owner: str, repo: str, pull_number: int, title: str, description: str):
@@ -148,12 +152,24 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     """Creates the prompt for the Claude model."""
-    return f"""Your task is reviewing pull requests. Instructions:
-    - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
-    - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
+    # Get relevant guidelines based on the code being reviewed
+    relevant_guidelines = guidelines_store.get_relevant_guidelines(
+        code_snippet=hunk.content,
+        file_path=file.path
+    )
+    
+    guidelines_text = "\n".join(relevant_guidelines)
+    
+    return f"""Your task is reviewing pull requests according to our coding guidelines. Instructions:
+    - Provide the response in following JSON format: {{"reviews": [{{"lineNumber": <line_number>, "reviewComment": "<review comment>"}}]}}
+    - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array
     - Use GitHub Markdown in comments
-    - Focus on bugs, security issues, and performance problems
+    - Focus on bugs, security issues, performance problems, and adherence to our coding guidelines
     - IMPORTANT: NEVER suggest adding comments to the code
+
+Here are the relevant coding guidelines for this code:
+
+{guidelines_text}
 
 Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.
 

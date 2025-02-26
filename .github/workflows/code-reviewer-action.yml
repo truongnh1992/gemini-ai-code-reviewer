@@ -1,15 +1,15 @@
-name: OpenAI Code Reviewer
+name: Claude Code Reviewer
 
 on:
   issue_comment:
     types: [created]
 permissions: write-all
 jobs:
-  openai-code-review:
+  claude-code-review:
     runs-on: ubuntu-latest
     if: |
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/openai-review')
+      contains(github.event.comment.body, '/claude-review')
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -25,11 +25,11 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run OpenAI Code Reviewer
+      - name: Run Claude Code Reviewer
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-3.5-turbo
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: claude-3-5-sonnet-20240620
           INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
         run: |
-          python review_code_openai.py
+          python review_code_claude.py

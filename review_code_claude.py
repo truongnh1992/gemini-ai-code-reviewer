@@ -7,6 +7,16 @@ import difflib
 import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
+
+def debug_log(message):
+    if DEBUG:
+        print(f"DEBUG: {message}")
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
@@ -27,25 +37,29 @@ class PRDetails:
 
 def get_pr_details() -> PRDetails:
     """Retrieves details of the pull request from GitHub Actions event payload."""
-    with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    debug_log(f"Event path: {event_path}")
+    
+    with open(event_path, "r") as f:
         event_data = json.load(f)
+    
+    debug_log(f"Event data: {json.dumps(event_data, indent=2)}")
 
-    # Handle comment trigger differently from direct PR events
-    if "issue" in event_data and "pull_request" in event_data["issue"]:
-        # For comment triggers, we need to get the PR number from the issue
-        pull_number = event_data["issue"]["number"]
+    # Handle PR labeled event
+    if "pull_request" in event_data:
+        pull_number = event_data["pull_request"]["number"]
         repo_full_name = event_data["repository"]["full_name"]
     else:
-        # Original logic for direct PR events
-        pull_number = event_data["number"]
-        repo_full_name = event_data["repository"]["full_name"]
+        raise ValueError("Unsupported event type")
+
+    debug_log(f"PR number: {pull_number}")
+    debug_log(f"Repo: {repo_full_name}")
 
     owner, repo = repo_full_name.split("/")
+    repo_obj = gh.get_repo(repo_full_name)
+    pr = repo_obj.get_pull(pull_number)
 
-    repo = gh.get_repo(repo_full_name)
-    pr = repo.get_pull(pull_number)
-
-    return PRDetails(owner, repo.name, pull_number, pr.title, pr.body)
+    return PRDetails(owner, repo, pull_number, pr.title, pr.body)
 
 
 def get_diff(owner: str, repo: str, pull_number: int) -> str:
@@ -307,60 +321,62 @@ def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
 
 def main():
     """Main function to execute the code review process."""
-    pr_details = get_pr_details()
-    event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
-
-    event_name = os.environ.get("GITHUB_EVENT_NAME")
-    if event_name == "issue_comment":
-        # Process comment trigger
-        if not event_data.get("issue", {}).get("pull_request"):
-            print("Comment was not on a pull request")
-            return
+    try:
+        debug_log("Starting code review process")
+        pr_details = get_pr_details()
+        debug_log(f"Got PR details: {pr_details.__dict__}")
 
         diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
+        debug_log(f"Got diff of length: {len(diff)}")
+        
         if not diff:
-            print("There is no diff found")
+            debug_log("No diff found")
             return
 
         parsed_diff = parse_diff(diff)
+        debug_log(f"Parsed diff into {len(parsed_diff)} files")
 
-        # Get and clean exclude patterns, handle empty input
+        # Get and clean exclude patterns
         exclude_patterns_raw = os.environ.get("INPUT_EXCLUDE", "")
-        print(f"Raw exclude patterns: {exclude_patterns_raw}")  # Debug log
+        debug_log(f"Raw exclude patterns: {exclude_patterns_raw}")
         
-        # Only split if we have a non-empty string
         exclude_patterns = []
         if exclude_patterns_raw and exclude_patterns_raw.strip():
             exclude_patterns = [p.strip() for p in exclude_patterns_raw.split(",") if p.strip()]
-        print(f"Exclude patterns: {exclude_patterns}")  # Debug log
+        debug_log(f"Processed exclude patterns: {exclude_patterns}")
 
-        # Filter files before analysis
+        # Filter files
         filtered_diff = []
         for file in parsed_diff:
             file_path = file.get('path', '')
             should_exclude = any(fnmatch.fnmatch(file_path, pattern) for pattern in exclude_patterns)
             if should_exclude:
-                print(f"Excluding file: {file_path}")  # Debug log
+                debug_log(f"Excluding file: {file_path}")
                 continue
             filtered_diff.append(file)
+            debug_log(f"Including file: {file_path}")
 
-        print(f"Files to analyze after filtering: {[f.get('path', '') for f in filtered_diff]}")  # Debug log
+        debug_log(f"Files to analyze after filtering: {[f.get('path', '') for f in filtered_diff]}")
         
         comments = analyze_code(filtered_diff, pr_details)
+        debug_log(f"Generated {len(comments)} comments")
+        
         if comments:
             try:
                 create_review_comment(
                     pr_details.owner, pr_details.repo, pr_details.pull_number, comments
                 )
+                debug_log("Successfully created review comments")
             except Exception as e:
-                print("Error in create_review_comment:", e)
-    else:
-        print("Unsupported event:", os.environ.get("GITHUB_EVENT_NAME"))
-        return
-
+                debug_log(f"Error in create_review_comment: {str(e)}")
+                raise
+    except Exception as error:
+        debug_log(f"Error in main: {str(error)}")
+        raise
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as error:
-        print("Error:", error) 
+        debug_log(f"Fatal error: {str(error)}")
+        raise 

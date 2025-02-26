@@ -1,5 +1,4 @@
-## Google Cloud credits are provided for this project `#VertexAISprint`
-Thanks, [Google](https://github.com/google) :)
+# OpenAI Code Reviewer
 
 # Claude Code Reviewer
 
@@ -58,7 +57,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: truongnh1992/gemini-ai-code-reviewer@main
+      - uses: Tomas-Jankauskas/ai-code-reviewer@main
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

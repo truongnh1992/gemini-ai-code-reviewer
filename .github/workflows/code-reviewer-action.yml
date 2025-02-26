@@ -1,15 +1,15 @@
-name: Gemini AI Code Reviewer
+name: OpenAI Code Reviewer
 
 on:
   issue_comment:
     types: [created]
 permissions: write-all
 jobs:
-  gemini-code-review:
+  openai-code-review:
     runs-on: ubuntu-latest
     if: |
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/gemini-review')
+      contains(github.event.comment.body, '/openai-review')
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -25,9 +25,11 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run Gemini AI Code Reviewer
+      - name: Run OpenAI Code Reviewer
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-3.5-turbo
+          INPUT_EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
         run: |
-          python3.10 review_code_gemini.py
+          python review_code_openai.py

@@ -1,7 +1,7 @@
 import json
 import os
 from typing import List, Dict, Any
-import google.generativeai as Client
+import openai
 from github import Github
 import difflib
 import requests
@@ -10,9 +10,9 @@ from unidiff import Hunk, PatchedFile, PatchSet
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 
-# Initialize GitHub and Gemini clients
+# Initialize GitHub and OpenAI clients
 gh = Github(GITHUB_TOKEN)
-gemini_client = Client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+openai.api_key = os.environ.get('OPENAI_API_KEY')
 
 
 class PRDetails:
@@ -78,7 +78,7 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
 
 
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
-    """Analyzes the code changes using Gemini and generates review comments."""
+    """Analyzes the code changes using OpenAI and generates review comments."""
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
     comments = []
@@ -116,7 +116,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
             hunk.content = '\n'.join(hunk_lines)
 
             prompt = create_prompt(file_info, hunk, pr_details)
-            print("Sending prompt to Gemini...")
+            print("Sending prompt to OpenAI...")
             ai_response = get_ai_response(prompt)
             print(f"AI response received: {ai_response}")
 
@@ -132,7 +132,7 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
 
 
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
-    """Creates the prompt for the Gemini model."""
+    """Creates the prompt for the OpenAI model."""
     return f"""Your task is reviewing pull requests. Instructions:
     - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
@@ -157,22 +157,23 @@ Git diff to review:
 """
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
-    """Sends the prompt to Gemini API and retrieves the response."""
-    # Use 'gemini-2.0-flash-001' as a fallback default value if the environment variable isn't set
-    gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash-001'))
+    """Sends the prompt to OpenAI API and retrieves the response."""
+    model = os.environ.get('OPENAI_MODEL', 'gpt-3.5-turbo')
 
-    generation_config = {
-        "max_output_tokens": 8192,
-        "temperature": 0.8,
-        "top_p": 0.95,
-    }
-
-    print("===== The promt sent to Gemini is: =====")
+    print("===== The prompt sent to OpenAI is: =====")
     print(prompt)
     try:
-        response = gemini_model.generate_content(prompt, generation_config=generation_config)
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are an expert code reviewer. Provide feedback in the requested JSON format."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=4000
+        )
 
-        response_text = response.text.strip()
+        response_text = response.choices[0].message.content.strip()
         if response_text.startswith('```json'):
             response_text = response_text[7:]  # Remove ```json
         if response_text.endswith('```'):
@@ -203,7 +204,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
             print(f"Raw response: {response_text}")
             return []
     except Exception as e:
-        print(f"Error during Gemini API call: {e}")
+        print(f"Error during OpenAI API call: {e}")
         return []
 
 class FileInfo:
@@ -255,7 +256,7 @@ def create_review_comment(
     try:
         # Create the review with only the required fields
         review = pr.create_review(
-            body="Gemini AI Code Reviewer Comments",
+            body="OpenAI Code Reviewer Comments",
             comments=comments,
             event="COMMENT"
         )

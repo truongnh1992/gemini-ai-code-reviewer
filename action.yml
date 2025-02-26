@@ -1,18 +1,18 @@
-name: "OpenAI Code Reviewer"
-description: "This GitHub Action automatically reviews PRs using OpenAI's GPT-3.5 Turbo model."
+name: "Claude Code Reviewer"
+description: "This GitHub Action automatically reviews PRs using Anthropic's Claude 3.5 Sonnet model."
 author: 'truongnh1992'
 
 inputs:
   GITHUB_TOKEN:
     description: 'GitHub token to interact with the repository'
     required: true
-  OPENAI_API_KEY:
-    description: 'OpenAI API key'
+  ANTHROPIC_API_KEY:
+    description: 'Anthropic API key'
     required: true
-  OPENAI_MODEL:
-    description: 'The OpenAI model to use for code review'
+  CLAUDE_MODEL:
+    description: 'The Claude model to use for code review'
     required: false
-    default: 'gpt-3.5-turbo'
+    default: 'claude-3-5-sonnet-20240620'
   INPUT_EXCLUDE:
     description: 'Comma-separated list of file patterns to exclude'
     required: false
@@ -30,13 +30,13 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install openai==0.28.0 PyGithub unidiff requests github3.py==1.3.0
+        pip install anthropic>=0.18.0 PyGithub unidiff requests github3.py==1.3.0
 
     - name: Run code review
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-        OPENAI_API_KEY: ${{ inputs.OPENAI_API_KEY }}
-        OPENAI_MODEL: ${{ inputs.OPENAI_MODEL }}
+        ANTHROPIC_API_KEY: ${{ inputs.ANTHROPIC_API_KEY }}
+        CLAUDE_MODEL: ${{ inputs.CLAUDE_MODEL }}
         INPUT_EXCLUDE: ${{ inputs.EXCLUDE }}
-      run: python ${{ github.action_path }}/review_code_openai.py
+      run: python ${{ github.action_path }}/review_code_claude.py

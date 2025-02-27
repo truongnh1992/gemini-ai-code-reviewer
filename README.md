@@ -11,6 +11,7 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 - Give use comments and suggestions to improve the source codes
 
 ![Demo](./Demo.png)
+![Demo2](./Demo2.png)
 
 ## Setup
 

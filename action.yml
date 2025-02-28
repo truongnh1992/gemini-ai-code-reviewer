@@ -17,6 +17,10 @@ inputs:
     description: 'Comma-separated list of file patterns to exclude'
     required: false
     default: ''
+  LANG:
+    description: 'Language in which to write comments'
+    required: false
+    default: 'English'
 runs:
   using: 'composite'
   steps:
@@ -38,4 +42,5 @@ runs:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
         GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
         EXCLUDE: ${{ inputs.EXCLUDE }}
+        LANG: ${{ inputs.LANG }}
       run: python ${{ github.action_path }}/review_code_gemini.py

@@ -138,6 +138,7 @@ def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
     - Use GitHub Markdown in comments
     - Focus on bugs, security issues, and performance problems
+    - Write comments in {os.environ.get('LANG', 'English')}
     - IMPORTANT: NEVER suggest adding comments to the code
 
 Review the following code diff in the file "{file.path}" and take the pull request title and description into account when writing the response.

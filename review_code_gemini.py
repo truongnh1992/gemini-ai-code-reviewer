@@ -221,7 +221,7 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
     comments = []
     for ai_response in ai_responses:
         try:
-            line_number = int(ai_response["lineNumber"]) + 1
+            line_number = int(ai_response["lineNumber"])
             print(f"Original AI suggested line: {line_number}")
 
             # Ensure the line number is within the hunk's range

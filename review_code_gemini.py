@@ -1,19 +1,174 @@
 import json
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Protocol
 import google.generativeai as Client
 from github import Github
 import difflib
 import requests
 import fnmatch
 from unidiff import Hunk, PatchedFile, PatchSet
+from abc import ABC, abstractmethod
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
-
-# Initialize GitHub and Gemini clients
 gh = Github(GITHUB_TOKEN)
-gemini_client = Client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
+class AIProvider(ABC):
+    """Abstract base class for AI code review providers."""
+    
+    @abstractmethod
+    def configure(self) -> None:
+        """Configure the AI provider with necessary credentials and settings."""
+        pass
+
+    @abstractmethod
+    def generate_review(self, prompt: str) -> List[Dict[str, Any]]:
+        """Generate code review from the given prompt."""
+        pass
+
+    @abstractmethod
+    def get_name(self) -> str:
+        """Get the name of the AI provider."""
+        pass
+
+class GeminiProvider(AIProvider):
+    """Gemini AI provider implementation."""
+
+    def __init__(self):
+        self.model = None
+        self.generation_config = {
+            "max_output_tokens": 8192,
+            "temperature": 0.8,
+            "top_p": 0.95,
+        }
+
+    def configure(self) -> None:
+        """Configure Gemini with API key and model."""
+        Client.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+        model_name = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash-001')
+        self.model = Client.GenerativeModel(model_name)
+
+    def generate_review(self, prompt: str) -> List[Dict[str, Any]]:
+        """Generate code review using Gemini AI."""
+        try:
+            response = self.model.generate_content(prompt, generation_config=self.generation_config)
+            
+            response_text = response.text.strip()
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+
+            try:
+                data = json.loads(response_text)
+                if "reviews" in data and isinstance(data["reviews"], list):
+                    return [
+                        review for review in data["reviews"]
+                        if "lineNumber" in review and "reviewComment" in review
+                    ]
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON response: {e}")
+                return []
+        except Exception as e:
+            print(f"Error during Gemini API call: {e}")
+            return []
+        
+        return []
+
+    def get_name(self) -> str:
+        """Get the provider name."""
+        return "Gemini AI"
+
+class DeepseekProvider(AIProvider):
+    """Deepseek AI provider implementation."""
+
+    def __init__(self):
+        self.api_url = "https://api.deepseek.com/v1/chat/completions"
+        self.api_key = None
+        self.model = None
+        self.config = {
+            "temperature": 0.8,
+            "max_tokens": 8192
+        }
+
+    def configure(self) -> None:
+        """Configure Deepseek with API key and model."""
+        self.api_key = os.environ.get('DEEPSEEK_API_KEY')
+        if not self.api_key:
+            raise ValueError("DEEPSEEK_API_KEY environment variable is required")
+        self.model = os.environ.get('DEEPSEEK_MODEL', 'deepseek-coder-33b-instruct')
+
+    def generate_review(self, prompt: str) -> List[Dict[str, Any]]:
+        """Generate code review using Deepseek AI."""
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}"
+            }
+            
+            data = {
+                "model": self.model,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": self.config["temperature"],
+                "max_tokens": self.config["max_tokens"]
+            }
+
+            response = requests.post(self.api_url, headers=headers, json=data)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            response_text = response_data['choices'][0]['message']['content'].strip()
+
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+
+            try:
+                data = json.loads(response_text)
+                if "reviews" in data and isinstance(data["reviews"], list):
+                    return [
+                        review for review in data["reviews"]
+                        if "lineNumber" in review and "reviewComment" in review
+                    ]
+            except json.JSONDecodeError as e:
+                print(f"Error decoding JSON response: {e}")
+                return []
+        except Exception as e:
+            print(f"Error during Deepseek API call: {e}")
+            return []
+        
+        return []
+
+    def get_name(self) -> str:
+        """Get the provider name."""
+        return "Deepseek AI"
+
+class AIProviderFactory:
+    """Factory class for creating and managing AI providers."""
+    
+    _providers = {
+        'gemini': GeminiProvider,
+        'deepseek': DeepseekProvider
+    }
+
+    @classmethod
+    def get_provider(cls, provider_name: str) -> AIProvider:
+        """Get an instance of the specified AI provider."""
+        provider_class = cls._providers.get(provider_name.lower())
+        if not provider_class:
+            supported = list(cls._providers.keys())
+            raise ValueError(f"Unsupported AI provider: {provider_name}. Supported providers: {supported}")
+        
+        provider = provider_class()
+        provider.configure()
+        return provider
+
+# Initialize AI provider
+ai_provider = AIProviderFactory.get_provider(os.environ.get('AI_PROVIDER', 'gemini'))
 
 class PRDetails:
     def __init__(self, owner: str, repo: str, pull_number: int, title: str, description: str):
@@ -23,7 +178,6 @@ class PRDetails:
         self.title = title
         self.description = description
 
-
 def get_pr_details() -> PRDetails:
     """Retrieves details of the pull request from GitHub Actions event payload."""
     with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
@@ -31,39 +185,29 @@ def get_pr_details() -> PRDetails:
 
     # Handle comment trigger differently from direct PR events
     if "issue" in event_data and "pull_request" in event_data["issue"]:
-        # For comment triggers, we need to get the PR number from the issue
         pull_number = event_data["issue"]["number"]
         repo_full_name = event_data["repository"]["full_name"]
     else:
-        # Original logic for direct PR events
         pull_number = event_data["number"]
         repo_full_name = event_data["repository"]["full_name"]
 
     owner, repo = repo_full_name.split("/")
-
     repo = gh.get_repo(repo_full_name)
     pr = repo.get_pull(pull_number)
 
     return PRDetails(owner, repo.name, pull_number, pr.title, pr.body)
 
-
 def get_diff(owner: str, repo: str, pull_number: int) -> str:
     """Fetches the diff of the pull request from GitHub API."""
-    # Use the correct repository name format
     repo_name = f"{owner}/{repo}"
     print(f"Attempting to get diff for: {repo_name} PR#{pull_number}")
 
-    repo = gh.get_repo(repo_name)
-    pr = repo.get_pull(pull_number)
-
-    # Use the GitHub API URL directly
-    api_url = f"https://api.github.com/repos/{repo_name}/pulls/{pull_number}"
-
     headers = {
-        'Authorization': f'Bearer {GITHUB_TOKEN}',  # Changed to Bearer format
+        'Authorization': f'Bearer {GITHUB_TOKEN}',
         'Accept': 'application/vnd.github.v3.diff'
     }
 
+    api_url = f"https://api.github.com/repos/{repo_name}/pulls/{pull_number}"
     response = requests.get(f"{api_url}.diff", headers=headers)
 
     if response.status_code == 200:
@@ -73,16 +217,13 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     else:
         print(f"Failed to get diff. Status code: {response.status_code}")
         print(f"Response content: {response.text}")
-        print(f"URL attempted: {api_url}.diff")
         return ""
 
-
 def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> List[Dict[str, Any]]:
-    """Analyzes the code changes using Gemini and generates review comments."""
+    """Analyzes the code changes using the configured AI provider and generates review comments."""
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
     comments = []
-    #print(f"Initial comments list: {comments}")
 
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')
@@ -96,7 +237,6 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
                 self.path = path
 
         file_info = FileInfo(file_path)
-
         hunks = file_data.get('hunks', [])
         print(f"Hunks in file: {len(hunks)}")
 
@@ -116,8 +256,8 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
             hunk.content = '\n'.join(hunk_lines)
 
             prompt = create_prompt(file_info, hunk, pr_details)
-            print("Sending prompt to Gemini...")
-            ai_response = get_ai_response(prompt)
+            print(f"Sending prompt to {ai_provider.get_name()}...")
+            ai_response = ai_provider.generate_review(prompt)
             print(f"AI response received: {ai_response}")
 
             if ai_response:
@@ -130,9 +270,8 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     print(f"\nFinal comments list: {comments}")
     return comments
 
-
 def create_prompt(file: PatchedFile, hunk: Hunk, pr_details: PRDetails) -> str:
-    """Creates the prompt for the Gemini model."""
+    """Creates the prompt for the AI model."""
     return f"""Your task is reviewing pull requests. Instructions:
     - Provide the response in following JSON format:  {{"reviews": [{{"lineNumber":  <line_number>, "reviewComment": "<review comment>"}}]}}
     - Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
@@ -156,56 +295,6 @@ Git diff to review:
 ```
 """
 
-def get_ai_response(prompt: str) -> List[Dict[str, str]]:
-    """Sends the prompt to Gemini API and retrieves the response."""
-    # Use 'gemini-2.0-flash-001' as a fallback default value if the environment variable isn't set
-    gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash-001'))
-
-    generation_config = {
-        "max_output_tokens": 8192,
-        "temperature": 0.8,
-        "top_p": 0.95,
-    }
-
-    print("===== The promt sent to Gemini is: =====")
-    print(prompt)
-    try:
-        response = gemini_model.generate_content(prompt, generation_config=generation_config)
-
-        response_text = response.text.strip()
-        if response_text.startswith('```json'):
-            response_text = response_text[7:]  # Remove ```json
-        if response_text.endswith('```'):
-            response_text = response_text[:-3]  # Remove ```
-        response_text = response_text.strip()
-
-        print(f"Cleaned response text: {response_text}")
-
-        try:
-            data = json.loads(response_text)
-            print(f"Parsed JSON data: {data}")
-
-            if "reviews" in data and isinstance(data["reviews"], list):
-                reviews = data["reviews"]
-                valid_reviews = []
-                for review in reviews:
-                    if "lineNumber" in review and "reviewComment" in review:
-                        valid_reviews.append(review)
-                    else:
-                        print(f"Invalid review format: {review}")
-                return valid_reviews
-            else:
-                print("Error: Response doesn't contain valid 'reviews' array")
-                print(f"Response content: {data}")
-                return []
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON response: {e}")
-            print(f"Raw response: {response_text}")
-            return []
-    except Exception as e:
-        print(f"Error during Gemini API call: {e}")
-        return []
-
 class FileInfo:
     """Simple class to hold file information."""
     def __init__(self, path: str):
@@ -223,7 +312,6 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
             line_number = int(ai_response["lineNumber"])
             print(f"Original AI suggested line: {line_number}")
 
-            # Ensure the line number is within the hunk's range
             if line_number < 1 or line_number > hunk.source_length:
                 print(f"Warning: Line number {line_number} is outside hunk range")
                 continue
@@ -237,7 +325,7 @@ def create_comment(file: FileInfo, hunk: Hunk, ai_responses: List[Dict[str, str]
             comments.append(comment)
 
         except (KeyError, TypeError, ValueError) as e:
-            print(f"Error creating comment from AI response: {e}, Response: {ai_response}")
+            print(f"Error creating comment from AI response: {e}")
     return comments
 
 def create_review_comment(
@@ -253,9 +341,8 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     try:
-        # Create the review with only the required fields
         review = pr.create_review(
-            body="Gemini AI Code Reviewer Comments",
+            body=f"{ai_provider.get_name()} Code Reviewer Comments",
             comments=comments,
             event="COMMENT"
         )
@@ -299,8 +386,6 @@ def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
 
     return files
 
-
-
 def main():
     """Main function to execute the code review process."""
     pr_details = get_pr_details()
@@ -308,7 +393,6 @@ def main():
 
     event_name = os.environ.get("GITHUB_EVENT_NAME")
     if event_name == "issue_comment":
-        # Process comment trigger
         if not event_data.get("issue", {}).get("pull_request"):
             print("Comment was not on a pull request")
             return
@@ -320,27 +404,24 @@ def main():
 
         parsed_diff = parse_diff(diff)
 
-        # Get and clean exclude patterns, handle empty input
         exclude_patterns_raw = os.environ.get("INPUT_EXCLUDE", "")
-        print(f"Raw exclude patterns: {exclude_patterns_raw}")  # Debug log
+        print(f"Raw exclude patterns: {exclude_patterns_raw}")
         
-        # Only split if we have a non-empty string
         exclude_patterns = []
         if exclude_patterns_raw and exclude_patterns_raw.strip():
             exclude_patterns = [p.strip() for p in exclude_patterns_raw.split(",") if p.strip()]
-        print(f"Exclude patterns: {exclude_patterns}")  # Debug log
+        print(f"Exclude patterns: {exclude_patterns}")
 
-        # Filter files before analysis
         filtered_diff = []
         for file in parsed_diff:
             file_path = file.get('path', '')
             should_exclude = any(fnmatch.fnmatch(file_path, pattern) for pattern in exclude_patterns)
             if should_exclude:
-                print(f"Excluding file: {file_path}")  # Debug log
+                print(f"Excluding file: {file_path}")
                 continue
             filtered_diff.append(file)
 
-        print(f"Files to analyze after filtering: {[f.get('path', '') for f in filtered_diff]}")  # Debug log
+        print(f"Files to analyze after filtering: {[f.get('path', '') for f in filtered_diff]}")
         
         comments = analyze_code(filtered_diff, pr_details)
         if comments:
@@ -353,7 +434,6 @@ def main():
     else:
         print("Unsupported event:", os.environ.get("GITHUB_EVENT_NAME"))
         return
-
 
 if __name__ == "__main__":
     try:

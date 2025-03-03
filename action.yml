@@ -1,22 +1,34 @@
-name: "Gemini AI Code Reviewer"
-description: "This GitHub Action automatically reviews PRs using Google's Gemini AI model."
+name: "AI Code Reviewer"
+description: "This GitHub Action automatically reviews PRs using various AI models (Gemini, Deepseek, etc.)"
 author: 'truongnh1992'
 
 inputs:
   GITHUB_TOKEN:
     description: 'GitHub token to interact with the repository'
     required: true
+  AI_PROVIDER:
+    description: 'AI provider to use (gemini, deepseek)'
+    required: false
+    default: 'gemini'
   GEMINI_API_KEY:
-    description: 'Google Gemini API key'
-    required: true
+    description: 'Google Gemini API key (required if using Gemini)'
+    required: false
   GEMINI_MODEL:
     description: 'The Gemini model to use for code review'
     required: false
-    default: 'gemini-1.5-flash-002'
+    default: 'gemini-2.0-flash-001'
+  DEEPSEEK_API_KEY:
+    description: 'Deepseek API key (required if using Deepseek)'
+    required: false
+  DEEPSEEK_MODEL:
+    description: 'The Deepseek model to use for code review'
+    required: false
+    default: 'deepseek-coder-33b-instruct'
   EXCLUDE:
     description: 'Comma-separated list of file patterns to exclude'
     required: false
     default: ''
+
 runs:
   using: 'composite'
   steps:
@@ -30,12 +42,16 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install google-generativeai PyGithub unidiff google-ai-generativelanguage==0.6.10 github3.py==1.3.0
+        pip install google-generativeai PyGithub unidiff requests
 
     - name: Run code review
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+        AI_PROVIDER: ${{ inputs.AI_PROVIDER }}
         GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
+        GEMINI_MODEL: ${{ inputs.GEMINI_MODEL }}
+        DEEPSEEK_API_KEY: ${{ inputs.DEEPSEEK_API_KEY }}
+        DEEPSEEK_MODEL: ${{ inputs.DEEPSEEK_MODEL }}
         EXCLUDE: ${{ inputs.EXCLUDE }}
-      run: python ${{ github.action_path }}/review_code_gemini.py
+      run: python ${{ github.action_path }}/review_code.py

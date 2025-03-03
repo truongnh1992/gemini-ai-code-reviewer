@@ -6,3 +6,5 @@ lib/**/*
 **/env
 **/venv
 **/.DS_Store
+.vscode
+__pycache__

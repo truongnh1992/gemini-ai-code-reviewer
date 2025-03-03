@@ -3,3 +3,6 @@ google-generativeai
 PyGitHub
 github3.py==1.3.0
 unidiff
+requests-mock
+pytest
+python-dotenv

@@ -1,0 +1,34 @@
+name: Deepseek AI Code Reviewer
+
+on:
+  issue_comment:
+    types: [created]
+permissions: write-all
+jobs:
+  deepseek-code-review:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/deepseek-review')
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run Deepseek AI Code Reviewer
+        env:
+          AI_PROVIDER: ${{ secrets.AI_PROVIDER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL }}
+        run: |
+          python3.10 review_code.py

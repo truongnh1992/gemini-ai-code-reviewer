@@ -79,6 +79,28 @@ This GitHub Action uses the Gemini AI API to provide code review feedback. It wo
 3. **Providing feedback**: Gemini AI examines the code and generates review comments.
 4. **Delivering the review**: The Action adds the comments directly to your pull request on GitHub.
 
+## Using Deepseek AI for Code Review
+
+In addition to Gemini, this action now supports Deepseek AI for code review. To use Deepseek:
+
+1. Get your Deepseek API key from [Deepseek Platform](https://platform.deepseek.com/)
+2. Add the Deepseek API key as a GitHub Secret named `DEEPSEEK_API_KEY`
+3. Modify your workflow file to use Deepseek:
+
+```yaml
+      - uses: truongnh1992/gemini-ai-code-reviewer@main
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_PROVIDER: deepseek
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: deepseek-coder-33b-instruct # Optional
+          EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
+```
+
+- The default model is `deepseek-coder-33b-instruct`
+- Trigger a Deepseek review by commenting `/deepseek-review` on your PR
+- See [CHANGELOG.md](docs/change_logs.md) for more details about the multi-provider support
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.

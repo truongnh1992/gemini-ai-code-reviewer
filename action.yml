@@ -16,7 +16,7 @@ inputs:
   EXCLUDE:
     description: 'Comma-separated list of file patterns to exclude'
     required: false
-    default: ''
+    default: '*.md, *.yaml, package*'
 runs:
   using: 'composite'
   steps:

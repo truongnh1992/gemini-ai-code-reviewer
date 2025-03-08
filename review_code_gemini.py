@@ -172,9 +172,9 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 
         response_text = response.text.strip()
         if response_text.startswith('```json'):
-            response_text = response_text[7:]  # Remove ```json
+            response_text = response_text[7:] 
         if response_text.endswith('```'):
-            response_text = response_text[:-3]  # Remove ```
+            response_text = response_text[:-3]
         response_text = response_text.strip()
 
         print(f"Cleaned response text: {response_text}")

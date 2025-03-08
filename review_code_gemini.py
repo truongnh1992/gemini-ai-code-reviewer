@@ -3,10 +3,9 @@ import os
 from typing import List, Dict, Any
 import google.generativeai as Client
 from github import Github
-import difflib
 import requests
 import fnmatch
-from unidiff import Hunk, PatchedFile, PatchSet
+from unidiff import Hunk, PatchedFile
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 

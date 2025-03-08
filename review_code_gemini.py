@@ -3,10 +3,9 @@ import os
 from typing import List, Dict, Any
 import google.generativeai as Client
 from github import Github
-import difflib
 import requests
 import fnmatch
-from unidiff import Hunk, PatchedFile, PatchSet
+from unidiff import Hunk, PatchedFile
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 
@@ -336,7 +335,7 @@ def main():
             file_path = file.get('path', '')
             should_exclude = any(fnmatch.fnmatch(file_path, pattern) for pattern in exclude_patterns)
             if should_exclude:
-                print(f"Excluding file: {file_path}")  # Debug log
+                print(f"Excluding file: {file_path}") 
                 continue
             filtered_diff.append(file)
 

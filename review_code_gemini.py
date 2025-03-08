@@ -163,7 +163,7 @@ def get_ai_response(prompt: str) -> List[Dict[str, str]]:
 
     generation_config = {
         "max_output_tokens": 8192,
-        "temperature": 0.8,
+        "temperature": 0.7,
         "top_p": 0.95,
     }
 

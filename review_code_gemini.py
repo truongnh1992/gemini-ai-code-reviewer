@@ -3,10 +3,9 @@ import os
 from typing import List, Dict, Any
 import google.generativeai as Client
 from github import Github
-import difflib
 import requests
 import fnmatch
-from unidiff import Hunk, PatchedFile, PatchSet
+from unidiff import Hunk, PatchedFile
 
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 
@@ -82,7 +81,6 @@ def analyze_code(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> Li
     print("Starting analyze_code...")
     print(f"Number of files to analyze: {len(parsed_diff)}")
     comments = []
-    #print(f"Initial comments list: {comments}")
 
     for file_data in parsed_diff:
         file_path = file_data.get('path', '')

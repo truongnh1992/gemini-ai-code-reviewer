@@ -12,7 +12,7 @@ inputs:
   GEMINI_MODEL:
     description: 'The Gemini model to use for code review'
     required: false
-    default: 'gemini-1.5-flash-002'
+    default: 'gemini-2.0-flash-001'
   EXCLUDE:
     description: 'Comma-separated list of file patterns to exclude'
     required: false

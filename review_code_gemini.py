@@ -305,6 +305,7 @@ def main():
     """Main function to execute the code review process."""
     pr_details = get_pr_details()
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
+    print("Hello world")
 
     event_name = os.environ.get("GITHUB_EVENT_NAME")
     if event_name == "issue_comment":

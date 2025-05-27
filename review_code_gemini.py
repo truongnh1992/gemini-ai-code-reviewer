@@ -245,6 +245,7 @@ def create_review_comment(
     repo: str,
     pull_number: int,
     comments: List[Dict[str, Any]],
+    summary: str,
 ):
     """Submits the review comments to the GitHub API."""
     print(f"Attempting to create {len(comments)} review comments")
@@ -253,9 +254,16 @@ def create_review_comment(
     repo = gh.get_repo(f"{owner}/{repo}")
     pr = repo.get_pull(pull_number)
     try:
-        # Create the review with only the required fields
+        # Create the review with summary and comments
+        review_body = f"""# AI Code Review Summary
+
+{summary}
+
+---
+### Detailed Comments Below
+"""
         review = pr.create_review(
-            body="Gemini AI Code Reviewer Comments",
+            body=review_body,
             comments=comments,
             event="COMMENT"
         )
@@ -299,7 +307,280 @@ def parse_diff(diff_str: str) -> List[Dict[str, Any]]:
 
     return files
 
+def generate_pr_summary(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> str:
+    """Generates an overall summary of the pull request using Gemini."""
+    
+    # Create a visual tree structure of changes
+    def build_tree(files):
+        """Build a visual tree structure of changed files."""
+        def count_actual_changes(hunks):
+            """Count actual additions and deletions in hunks."""
+            changes = 0
+            for hunk in hunks:
+                for line in hunk.get('lines', []):
+                    if (line.startswith('+') or line.startswith('-')) and not line[1:].isspace():
+                        changes += 1
+            return changes
 
+        def sort_path(path):
+            """Sort paths so directories come before files."""
+            parts = path.split('/')
+            # Directories sort before files in the same level
+            return [(p, 0) if i < len(parts)-1 else (p, 1) for i, p in enumerate(parts)]
+
+        # Sort files to maintain consistent order
+        sorted_files = sorted(files, key=lambda x: sort_path(x.get('path', '')))
+        
+        tree_lines = []
+        processed_dirs = set()
+
+        for idx, file_data in enumerate(sorted_files):
+            file_path = file_data.get('path', '').strip()
+            if not file_path:  # Skip empty paths
+                continue
+
+            hunks = file_data.get('hunks', [])
+            path_parts = file_path.split('/')
+            
+            current_path = ""
+            for i, part in enumerate(path_parts):
+                current_path = current_path + part if i == 0 else current_path + '/' + part
+                is_last_component = i == len(path_parts) - 1
+                
+                if is_last_component:  # File
+                    prefix = "    " * i
+                    is_last_file = idx == len(sorted_files) - 1
+                    branch = "└── " if is_last_file else "├── "
+                    
+                    # Count actual changes
+                    change_count = count_actual_changes(hunks)
+                    # Only show changes if there are any
+                    change_text = f" ({change_count} changes)" if change_count > 0 else ""
+                    tree_lines.append(f"{prefix}{branch}{part}{change_text}")
+                else:  # Directory
+                    if current_path not in processed_dirs:
+                        prefix = "    " * i
+                        # Check if this is the last directory at this level
+                        is_last_dir = not any(f.get('path', '').startswith(current_path + '/')
+                                            for f in sorted_files[idx+1:])
+                        branch = "└── " if is_last_dir else "├── "
+                        tree_lines.append(f"{prefix}{branch}{part}/")
+                        processed_dirs.add(current_path)
+        
+        return tree_lines
+
+    # Generate the tree structure
+    tree = build_tree(parsed_diff)
+    tree_str = "\n".join(tree)
+
+    # Build the code diffs section with file names as headers
+    code_diffs = []
+    for file_data in parsed_diff:
+        file_path = file_data.get('path', '')
+        hunks = file_data.get('hunks', [])
+        
+        # Add a header for each file with markdown formatting
+        code_diffs.append(f"\n## File: `{file_path}`")
+        
+        for idx, hunk in enumerate(hunks):
+            # Add hunk number for better reference
+            code_diffs.append(f"\n### Change {idx + 1}:")
+            code_diffs.append("```diff\n" + "\n".join(hunk.get('lines', [])) + "\n```")
+
+    prompt = f"""Analyze this pull request and generate a comprehensive review.
+
+Pull Request Details:
+Title: {pr_details.title}
+Description: {pr_details.description or 'No description provided'}
+
+File Structure:
+```
+{tree_str}
+```
+
+Code Changes:
+{chr(10).join(code_diffs)}
+
+Please provide your analysis in the following format:
+1. Summary of Changes (2-3 sentences)
+2. Potential Impact of These Changes
+3. File Structure (as shown above)
+
+Keep the response concise and technical."""
+
+    try:
+        gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash-001'))
+        response = gemini_model.generate_content(prompt)
+        
+        # Format the final response with the tree structure
+        formatted_response = f"""## Pull Request Review
+
+{response.text.strip()}
+
+## File Structure
+```
+{tree_str}
+```"""
+        return formatted_response
+    except Exception as e:
+        print(f"Error generating PR summary: {e}")
+        return "Unable to generate PR summary"
+
+def analyze_pr(parsed_diff: List[Dict[str, Any]], pr_details: PRDetails) -> tuple[str, List[Dict[str, Any]]]:
+    """Analyzes the entire PR and generates both summary and comments in one go."""
+    
+    def build_tree(files):
+        """Build a visual tree structure of changed files."""
+        def count_actual_changes(hunks):
+            """Count actual additions and deletions in hunks."""
+            changes = 0
+            for hunk in hunks:
+                for line in hunk.get('lines', []):
+                    # Only count lines that start with + or - and ignore whitespace-only changes
+                    if (line.startswith('+') or line.startswith('-')) and not line[1:].isspace():
+                        changes += 1
+            return changes
+
+        def sort_path(path):
+            """Sort paths so directories come before files."""
+            parts = path.split('/')
+            # Directories sort before files in the same level
+            return [(p, 0) if i < len(parts)-1 else (p, 1) for i, p in enumerate(parts)]
+
+        # Sort files to maintain consistent order
+        sorted_files = sorted(files, key=lambda x: sort_path(x.get('path', '')))
+        
+        tree_lines = []
+        processed_dirs = set()
+
+        for idx, file_data in enumerate(sorted_files):
+            file_path = file_data.get('path', '').strip()
+            if not file_path:  # Skip empty paths
+                continue
+
+            hunks = file_data.get('hunks', [])
+            path_parts = file_path.split('/')
+            
+            current_path = ""
+            for i, part in enumerate(path_parts):
+                current_path = current_path + part if i == 0 else current_path + '/' + part
+                is_last_component = i == len(path_parts) - 1
+                
+                if is_last_component:  # File
+                    prefix = "    " * i
+                    is_last_file = idx == len(sorted_files) - 1
+                    branch = "└── " if is_last_file else "├── "
+                    
+                    # Count actual changes
+                    change_count = count_actual_changes(hunks)
+                    # Only show changes if there are any
+                    change_text = f" ({change_count} changes)" if change_count > 0 else ""
+                    tree_lines.append(f"{prefix}{branch}{part}{change_text}")
+                else:  # Directory
+                    if current_path not in processed_dirs:
+                        prefix = "    " * i
+                        # Check if this is the last directory at this level
+                        is_last_dir = not any(f.get('path', '').startswith(current_path + '/')
+                                            for f in sorted_files[idx+1:])
+                        branch = "└── " if is_last_dir else "├── "
+                        tree_lines.append(f"{prefix}{branch}{part}/")
+                        processed_dirs.add(current_path)
+        
+        return tree_lines
+
+    # Generate tree structure
+    tree = build_tree(parsed_diff)
+    tree_str = "\n".join(tree)
+
+    # Build complete diff with file structure
+    code_sections = []
+    for file_data in parsed_diff:
+        file_path = file_data.get('path', '')
+        hunks = file_data.get('hunks', [])
+        
+        # Add file header with markdown
+        code_sections.append(f"\n## `{file_path}`")
+        
+        for idx, hunk in enumerate(hunks):
+            code_sections.append(f"\n### Change {idx + 1}:")
+            code_sections.append("```diff\n" + "\n".join(hunk.get('lines', [])) + "\n```")
+
+    prompt = f"""Analyze this pull request and provide both a summary and specific code reviews.
+
+Pull Request Details:
+Title: {pr_details.title}
+Description: {pr_details.description or 'No description provided'}
+
+File Structure:
+```
+{tree_str}
+```
+
+Code Changes:
+{chr(10).join(code_sections)}
+
+Provide your response in the following JSON format:
+{{
+    "summary": {{
+        "overview": "2-3 sentences describing the changes",
+        "impact": "Potential impact of these changes",
+        "fileStructure": "Description of the file structure changes"
+    }},
+    "reviews": [
+        {{
+            "file": "filename",
+            "lineNumber": line_number,
+            "reviewComment": "specific review comment"
+        }}
+    ]
+}}
+
+Focus on:
+- Technical accuracy
+- Security issues
+- Performance problems
+- Best practices
+- NEVER suggest adding comments to code
+"""
+
+    try:
+        gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash-001'))
+        response = gemini_model.generate_content(prompt)
+        
+        # Parse the response
+        response_text = response.text.strip()
+        if response_text.startswith('```json'):
+            response_text = response_text[7:-3]  # Remove ```json and ```
+
+        data = json.loads(response_text)
+        
+        # Format summary
+        summary = f"""## Summary
+{data['summary']['overview']}
+
+### Impact
+{data['summary']['impact']}
+
+### File Structure
+```
+{tree_str}
+```
+"""
+        
+        # Format comments
+        comments = []
+        for review in data.get('reviews', []):
+            comments.append({
+                "body": review['reviewComment'],
+                "path": review['file'],
+                "position": review['lineNumber']
+            })
+        
+        return summary, comments
+        
+    except Exception as e:
+        print(f"Error in analyze_pr: {e}")
+        return "Unable to generate review", []
 
 def main():
     """Main function to execute the code review process."""
@@ -308,7 +589,6 @@ def main():
 
     event_name = os.environ.get("GITHUB_EVENT_NAME")
     if event_name == "issue_comment":
-        # Process comment trigger
         if not event_data.get("issue", {}).get("pull_request"):
             print("Comment was not on a pull request")
             return
@@ -319,40 +599,31 @@ def main():
             return
 
         parsed_diff = parse_diff(diff)
-
-        # Get and clean exclude patterns, handle empty input
-        exclude_patterns_raw = os.environ.get("INPUT_EXCLUDE", "")
-        print(f"Raw exclude patterns: {exclude_patterns_raw}")  # Debug log
         
-        # Only split if we have a non-empty string
-        exclude_patterns = []
-        if exclude_patterns_raw and exclude_patterns_raw.strip():
-            exclude_patterns = [p.strip() for p in exclude_patterns_raw.split(",") if p.strip()]
-        print(f"Exclude patterns: {exclude_patterns}")  # Debug log
+        # Filter files
+        exclude_patterns = [p.strip() for p in os.environ.get("INPUT_EXCLUDE", "").split(",") if p.strip()]
+        filtered_diff = [
+            file for file in parsed_diff 
+            if not any(fnmatch.fnmatch(file.get('path', ''), pattern) for pattern in exclude_patterns)
+        ]
 
-        # Filter files before analysis
-        filtered_diff = []
-        for file in parsed_diff:
-            file_path = file.get('path', '')
-            should_exclude = any(fnmatch.fnmatch(file_path, pattern) for pattern in exclude_patterns)
-            if should_exclude:
-                print(f"Excluding file: {file_path}")  # Debug log
-                continue
-            filtered_diff.append(file)
-
-        print(f"Files to analyze after filtering: {[f.get('path', '') for f in filtered_diff]}")  # Debug log
+        # Generate both summary and comments in one go
+        print("Analyzing PR...")
+        summary, comments = analyze_pr(filtered_diff, pr_details)
         
-        comments = analyze_code(filtered_diff, pr_details)
-        if comments:
+        if comments or summary:
             try:
                 create_review_comment(
-                    pr_details.owner, pr_details.repo, pr_details.pull_number, comments
+                    pr_details.owner,
+                    pr_details.repo,
+                    pr_details.pull_number,
+                    comments,
+                    summary
                 )
             except Exception as e:
                 print("Error in create_review_comment:", e)
     else:
         print("Unsupported event:", os.environ.get("GITHUB_EVENT_NAME"))
-        return
 
 
 if __name__ == "__main__":

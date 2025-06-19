@@ -60,8 +60,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: truongnh1992/gemini-ai-code-reviewer@main
+      - uses: Swisyn/gemini-ai-code-reviewer@v1.0
         with:
+          GITHUB_API_URL: "https://github.mycompany.com/api/v3"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-2.5-pro-preview-05-06 # Optional, default is `gemini-2.0-flash-001`

@@ -1,4 +1,4 @@
-name: "Gemini AI Code Reviewer"
+name: "Gemini Code Reviewer"
 description: "This GitHub Action automatically reviews PRs using Google's Gemini AI model."
 author: 'Swisyn'
 

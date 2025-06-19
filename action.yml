@@ -1,10 +1,13 @@
 name: "Gemini AI Code Reviewer"
 description: "This GitHub Action automatically reviews PRs using Google's Gemini AI model."
-author: 'truongnh1992'
+author: 'Swisyn'
 
 inputs:
   GITHUB_TOKEN:
     description: 'GitHub token to interact with the repository'
+    required: true
+  GITHUB_API_URL:
+    description: 'GitHub instance url to interact with the repository'
     required: true
   GEMINI_API_KEY:
     description: 'Google Gemini API key'

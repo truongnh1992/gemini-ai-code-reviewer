@@ -47,9 +47,10 @@ def get_pr_details() -> PRDetails:
     return PRDetails(owner, repo.name, pull_number, pr.title, pr.body)
 
 
-def get_diff(owner: str, repo: str, pull_number: int) -> str:
+def get_diff(api_url: str, owner: str, repo: str, pull_number: int) -> str:
     """Fetches the diff of the pull request from GitHub API."""
     # Use the correct repository name format
+    
     repo_name = f"{owner}/{repo}"
     print(f"Attempting to get diff for: {repo_name} PR#{pull_number}")
 
@@ -57,14 +58,14 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     pr = repo.get_pull(pull_number)
 
     # Use the GitHub API URL directly
-    api_url = f"https://api.github.com/repos/{repo_name}/pulls/{pull_number}"
+    pr_api_url = f"{api_url}/repos/{repo_name}/pulls/{pull_number}"
 
     headers = {
         'Authorization': f'Bearer {GITHUB_TOKEN}',  # Changed to Bearer format
         'Accept': 'application/vnd.github.v3.diff'
     }
 
-    response = requests.get(f"{api_url}.diff", headers=headers)
+    response = requests.get(f"{pr_api_url}.diff", headers=headers)
 
     if response.status_code == 200:
         diff = response.text
@@ -73,7 +74,7 @@ def get_diff(owner: str, repo: str, pull_number: int) -> str:
     else:
         print(f"Failed to get diff. Status code: {response.status_code}")
         print(f"Response content: {response.text}")
-        print(f"URL attempted: {api_url}.diff")
+        print(f"URL attempted: {pr_api_url}.diff")
         return ""
 
 
@@ -306,6 +307,7 @@ def main():
     pr_details = get_pr_details()
     event_data = json.load(open(os.environ["GITHUB_EVENT_PATH"], "r"))
 
+    api_url = os.environ.get("GITHUB_API_URL")
     event_name = os.environ.get("GITHUB_EVENT_NAME")
     if event_name == "issue_comment":
         # Process comment trigger
@@ -313,7 +315,7 @@ def main():
             print("Comment was not on a pull request")
             return
 
-        diff = get_diff(pr_details.owner, pr_details.repo, pr_details.pull_number)
+        diff = get_diff(api_url, pr_details.owner, pr_details.repo, pr_details.pull_number)
         if not diff:
             print("There is no diff found")
             return

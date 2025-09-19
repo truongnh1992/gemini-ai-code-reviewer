@@ -3,3 +3,5 @@ google-generativeai
 PyGitHub
 github3.py==1.3.0
 unidiff
+tenacity>=8.0.0
+dataclasses; python_version<"3.7"

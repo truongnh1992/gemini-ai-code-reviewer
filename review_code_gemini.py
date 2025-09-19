@@ -158,8 +158,8 @@ Git diff to review:
 
 def get_ai_response(prompt: str) -> List[Dict[str, str]]:
     """Sends the prompt to Gemini API and retrieves the response."""
-    # Use 'gemini-2.0-flash-001' as a fallback default value if the environment variable isn't set
-    gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash-001'))
+    # Use 'gemini-2.5-flash' as a fallback default value if the environment variable isn't set
+    gemini_model = Client.GenerativeModel(os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash'))
 
     generation_config = {
         "max_output_tokens": 8192,

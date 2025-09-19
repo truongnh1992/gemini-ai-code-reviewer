@@ -400,9 +400,23 @@ class CodeReviewer:
         
         # Test GitHub connection
         try:
+            # Test by getting rate limit info
             rate_limit = self.github_client.check_rate_limit()
-            results['github'] = bool(rate_limit)
-            logger.info(f"✅ GitHub connection: OK (remaining: {rate_limit.get('core', {}).get('remaining', 'unknown')})")
+            
+            # Also test by getting the authenticated user (a simple API call)
+            try:
+                user = self.github_client._client.get_user()
+                github_user = user.login if user else "unknown"
+                results['github'] = True
+                logger.info(f"✅ GitHub connection: OK (user: {github_user}, remaining: {rate_limit.get('core', {}).get('remaining', 'unknown')})")
+            except Exception as inner_e:
+                # If user info fails, still consider connection OK if rate limit worked
+                if rate_limit and rate_limit.get('core', {}).get('remaining') != 'unknown':
+                    results['github'] = True
+                    logger.info(f"✅ GitHub connection: OK (remaining: {rate_limit.get('core', {}).get('remaining', 'unknown')})")
+                else:
+                    raise inner_e
+                    
         except Exception as e:
             results['github'] = False
             logger.error(f"❌ GitHub connection failed: {str(e)}")

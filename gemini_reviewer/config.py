@@ -65,7 +65,7 @@ class GitHubConfig:
 class GeminiConfig:
     """Configuration for Gemini AI integration."""
     api_key: str
-    model_name: str = "gemini-2.0-flash-001"
+    model_name: str = "gemini-2.5-flash"
     max_output_tokens: int = 8192
     temperature: float = 0.8
     top_p: float = 0.95
@@ -191,7 +191,7 @@ class Config:
         # Gemini configuration  
         gemini_config = GeminiConfig(
             api_key=gemini_api_key,
-            model_name=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-001"),
+            model_name=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
             temperature=float(os.environ.get("GEMINI_TEMPERATURE", "0.8")),
             top_p=float(os.environ.get("GEMINI_TOP_P", "0.95")),
             max_output_tokens=int(os.environ.get("GEMINI_MAX_TOKENS", "8192"))

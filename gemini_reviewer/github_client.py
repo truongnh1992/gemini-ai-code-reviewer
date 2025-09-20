@@ -175,8 +175,13 @@ class GitHubClient:
             # Use direct API call for diff
             api_url = f"{self.config.api_base_url}/repos/{repo_name}/pulls/{pull_number}.diff"
             
+            # Override Accept header to specifically request diff format
+            diff_headers = {
+                'Accept': 'application/vnd.github.v3.diff'
+            }
+            
             logger.debug(f"Making diff API request to: {api_url}")
-            response = self._session.get(api_url, timeout=self.config.timeout)
+            response = self._session.get(api_url, headers=diff_headers, timeout=self.config.timeout)
             
             if response.status_code == 200:
                 diff = response.text

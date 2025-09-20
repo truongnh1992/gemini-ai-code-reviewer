@@ -400,22 +400,25 @@ class CodeReviewer:
         
         # Test GitHub connection
         try:
-            # Test by getting rate limit info
+            # Test by getting rate limit info - if this works, connection is OK
             rate_limit = self.github_client.check_rate_limit()
             
-            # Also test by getting the authenticated user (a simple API call)
-            try:
-                user = self.github_client._client.get_user()
-                github_user = user.login if user else "unknown"
+            # If we got any rate limit response, connection is working
+            if rate_limit and 'core' in rate_limit:
                 results['github'] = True
-                logger.info(f"✅ GitHub connection: OK (user: {github_user}, remaining: {rate_limit.get('core', {}).get('remaining', 'unknown')})")
-            except Exception as inner_e:
-                # If user info fails, still consider connection OK if rate limit worked
-                if rate_limit and rate_limit.get('core', {}).get('remaining') != 'unknown':
-                    results['github'] = True
-                    logger.info(f"✅ GitHub connection: OK (remaining: {rate_limit.get('core', {}).get('remaining', 'unknown')})")
-                else:
-                    raise inner_e
+                remaining = rate_limit.get('core', {}).get('remaining', 'unknown')
+                
+                # Try to get additional user info for better logging
+                try:
+                    user = self.github_client._client.get_user()
+                    github_user = user.login if user else "unknown"
+                    logger.info(f"✅ GitHub connection: OK (user: {github_user}, remaining: {remaining})")
+                except Exception:
+                    # User info failed, but connection is still OK based on rate limit check
+                    logger.info(f"✅ GitHub connection: OK (remaining: {remaining})")
+            else:
+                # Rate limit check didn't return expected structure
+                raise Exception("Rate limit check returned unexpected structure")
                     
         except Exception as e:
             results['github'] = False

@@ -66,7 +66,16 @@ class DiffParser:
         """Parse diff using the unidiff library."""
         try:
             patch_set = PatchSet(diff_content)
-            logger.debug(f"Unidiff PatchSet created with {len(patch_set)} files")
+            logger.info(f"🔍 Unidiff PatchSet created with {len(patch_set)} files")
+            
+            # If no files found, show diff preview for debugging
+            if len(patch_set) == 0:
+                logger.warning(f"PatchSet is empty! Diff preview (first 1000 chars):")
+                logger.warning(f"Diff content: {repr(diff_content[:1000])}")
+                lines = diff_content.split('\n')
+                logger.warning(f"Total lines: {len(lines)}")
+                logger.warning(f"First 10 lines: {lines[:10]}")
+                
             diff_files = []
             
             for i, patched_file in enumerate(patch_set):

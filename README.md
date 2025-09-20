@@ -83,3 +83,7 @@ This GitHub Action uses the Gemini AI API to provide code review feedback. It wo
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+
+## Star History ⭐️
+
+[![Star History Chart](https://api.star-history.com/svg?repos=truongnh1992/gemini-ai-code-reviewer&type=Date)](https://star-history.com/#truongnh1992/gemini-ai-code-reviewer&Date)

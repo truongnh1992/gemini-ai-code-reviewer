@@ -161,7 +161,8 @@ async def _log_review_results(result: ReviewResult, reviewer: CodeReviewer):
     logger.info(f"PR: #{result.pr_details.pull_number} - {result.pr_details.title}")
     logger.info(f"Files processed: {result.processed_files}")
     logger.info(f"Comments generated: {result.total_comments}")
-    logger.info(f"Processing time: {result.processing_time:.2f}s")
+    processing_time = result.processing_time or 0.0
+    logger.info(f"Processing time: {processing_time:.2f}s")
     
     # Comment breakdown by priority
     if result.comments:

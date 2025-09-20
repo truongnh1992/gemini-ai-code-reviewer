@@ -47,8 +47,11 @@ class DiffParser:
             if diff_files:
                 logger.info(f"Successfully parsed {len(diff_files)} files using unidiff")
                 return diff_files
+            else:
+                logger.warning("Unidiff parsing returned 0 files, trying manual parsing")
         except Exception as e:
             logger.warning(f"Unidiff parsing failed: {str(e)}, trying manual parsing")
+            logger.debug(f"Diff content preview: {diff_content[:500]}...")
         
         try:
             # Fallback to manual parsing
@@ -63,20 +66,26 @@ class DiffParser:
         """Parse diff using the unidiff library."""
         try:
             patch_set = PatchSet(diff_content)
+            logger.debug(f"Unidiff PatchSet created with {len(patch_set)} files")
             diff_files = []
             
-            for patched_file in patch_set:
+            for i, patched_file in enumerate(patch_set):
+                logger.debug(f"Processing patched file {i+1}: {patched_file.source_file} -> {patched_file.target_file}")
                 diff_file = self._convert_patched_file(patched_file)
                 if diff_file:
                     diff_files.append(diff_file)
                     self._parsed_files_count += 1
+                    logger.debug(f"✅ Successfully converted file: {diff_file.file_info.path}")
                 else:
                     self._skipped_files_count += 1
+                    logger.debug(f"⚠️ Skipped file: {patched_file.source_file} -> {patched_file.target_file}")
             
+            logger.info(f"Unidiff parsing completed: {len(diff_files)} files processed, {self._skipped_files_count} skipped")
             return diff_files
             
         except Exception as e:
-            logger.debug(f"Unidiff parsing error: {str(e)}")
+            logger.warning(f"Unidiff parsing error: {str(e)}")
+            logger.debug(f"Diff content preview: {diff_content[:1000]}...")
             raise
     
     def _convert_patched_file(self, patched_file: PatchedFile) -> Optional[DiffFile]:
@@ -113,7 +122,7 @@ class DiffParser:
             
             # Skip binary files
             if file_info.is_binary:
-                logger.debug(f"Skipping binary file: {file_path}")
+                logger.debug(f"⚠️ Skipping binary file: {file_path}")
                 return None
             
             # Convert hunks
@@ -124,7 +133,7 @@ class DiffParser:
                     hunks.append(hunk_info)
             
             if not hunks:
-                logger.debug(f"No valid hunks found for file: {file_path}")
+                logger.debug(f"⚠️ No valid hunks found for file: {file_path}")
                 return None
             
             diff_file = DiffFile(file_info=file_info, hunks=hunks)

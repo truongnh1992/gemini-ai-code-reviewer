@@ -258,11 +258,32 @@ class Config:
         if self.review.custom_prompt_template:
             return self.review.custom_prompt_template
         
-        base_prompt = """Your task is reviewing pull requests. Instructions:
-- Provide the response in following JSON format: {{"reviews": [{{"lineNumber": <line_number>, "reviewComment": "<review comment>"}}]}}
-- Provide comments and suggestions ONLY if there is something to improve, otherwise "reviews" should be an empty array.
-- Use GitHub Markdown in comments
-- IMPORTANT: NEVER suggest adding comments to the code"""
+        base_prompt = """You are an expert code reviewer analyzing a pull request. Your task is to identify issues and provide constructive feedback.
+
+RESPONSE FORMAT:
+- Return valid JSON: {{"reviews": [{{"lineNumber": <line_number>, "reviewComment": "<review comment>", "priority": "<low|medium|high|critical>", "category": "<category>"}}]}}
+- If no issues are found, return: {{"reviews": []}}
+- Use GitHub Markdown for formatting in comments
+
+WHAT TO REVIEW:
+Look for and comment on:
+- **Bugs & Logic Errors**: Incorrect logic, edge cases not handled, potential runtime errors
+- **Security Issues**: Vulnerabilities, injection risks, authentication/authorization problems, data exposure
+- **Performance Problems**: Inefficient algorithms, unnecessary loops, memory leaks, N+1 queries
+- **Code Quality**: Duplicated code, poor naming, complex functions that should be split
+- **Error Handling**: Missing try-catch, unhandled edge cases, silent failures
+- **Best Practices**: Violations of language-specific conventions, anti-patterns
+- **Potential Null/Undefined**: Missing null checks, unsafe optional chaining
+- **Resource Management**: Unclosed connections, file handles, memory management issues
+
+GUIDELINES:
+- Be specific and actionable in your feedback
+- Reference the exact line number where the issue occurs
+- Explain WHY something is a problem and HOW to fix it
+- Prioritize critical bugs and security issues as "high" or "critical"
+- Mark minor improvements as "low"
+- NEVER suggest adding code comments or documentation (focus on code issues only)
+- If the code is genuinely good with no issues, return an empty reviews array"""
         
         mode_specific_instructions = {
             ReviewMode.STRICT: """

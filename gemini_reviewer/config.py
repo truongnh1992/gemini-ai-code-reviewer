@@ -210,13 +210,18 @@ class Config:
         except ValueError:
             logging.warning(f"Invalid review mode '{review_mode_str}', using 'standard'")
         
+        # Get custom system prompt if provided
+        system_prompt = os.environ.get("SYSTEM_PROMPT", "") or os.environ.get("INPUT_SYSTEM_PROMPT", "")
+        custom_prompt_template = system_prompt.strip() if system_prompt else None
+        
         review_config = ReviewConfig(
             review_mode=review_mode,
             exclude_patterns=exclude_patterns,
             max_files_per_review=int(os.environ.get("MAX_FILES_PER_REVIEW", "50")),
             max_lines_per_hunk=int(os.environ.get("MAX_LINES_PER_HUNK", "500")),
             review_test_files=os.environ.get("REVIEW_TEST_FILES", "false").lower() == "true",
-            review_docs=os.environ.get("REVIEW_DOCS", "false").lower() == "true"
+            review_docs=os.environ.get("REVIEW_DOCS", "false").lower() == "true",
+            custom_prompt_template=custom_prompt_template
         )
         
         # Performance configuration

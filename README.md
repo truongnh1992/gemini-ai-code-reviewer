@@ -66,8 +66,41 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-2.5-pro # Optional, default is `gemini-2.5-flash`
           EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
+          SYSTEM_PROMPT: | # Optional: Custom system prompt for code reviews
+            Review the code with the following guidelines:
+            - Focus on security vulnerabilities and potential bugs
+            - Check for proper error handling
+            - Ensure code follows best practices
+            - Verify performance considerations
 ```
-> if you don't set `GEMINI_MODEL`, the default model is `gemini-2.5-flash`. `gemini-2.5-flash` is a next-generation model offering speed and multimodal generation capabilities.  It's suitable for a wide variety of tasks, including code generation, data extraction, and text editing.. For the detailed information about the models, please refer to [Gemini models](https://ai.google.dev/gemini-api/docs/models/gemini).
+
+## Configuration Options
+
+### Required Parameters
+- **GITHUB_TOKEN**: GitHub token to interact with the repository (automatically provided by GitHub Actions)
+- **GEMINI_API_KEY**: Your Google Gemini API key (store this as a GitHub Secret)
+
+### Optional Parameters
+- **GEMINI_MODEL**: The Gemini model to use for code review (default: `gemini-2.5-flash`)
+  - `gemini-2.5-flash` is a next-generation model offering speed and multimodal generation capabilities. It's suitable for a wide variety of tasks, including code generation, data extraction, and text editing.
+  - For detailed information about available models, refer to [Gemini models](https://ai.google.dev/gemini-api/docs/models/gemini).
+  
+- **EXCLUDE**: Comma-separated list of file patterns to exclude from review (e.g., `*.md,*.txt,package-lock.json`)
+  
+- **SYSTEM_PROMPT**: Custom system prompt to define specific rules and guidelines for code reviews
+  - If not provided, the action uses a default prompt based on best practices
+  - Use this to customize the review focus (e.g., security-first, performance-focused, style-specific)
+  - Example:
+    ```yaml
+    SYSTEM_PROMPT: |
+      You are a senior code reviewer. Focus on:
+      1. Security vulnerabilities (SQL injection, XSS, etc.)
+      2. Performance bottlenecks
+      3. Code maintainability and readability
+      4. Proper error handling
+      Do not comment on minor style issues.
+    ```
+
 4. Commit codes to your repository, and working on your pull requests.
 5. When you're ready to review the PR, you can trigger the workflow by commenting `/gemini-review` in the PR.
 

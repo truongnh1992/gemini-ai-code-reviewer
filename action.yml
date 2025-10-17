@@ -20,6 +20,10 @@ inputs:
     description: 'Comma-separated list of file patterns to exclude'
     required: false
     default: ''
+  SYSTEM_PROMPT:
+    description: 'Custom system prompt with rules and guidelines for code reviews'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
@@ -42,4 +46,5 @@ runs:
         GEMINI_API_KEY: ${{ inputs.GEMINI_API_KEY }}
         GEMINI_MODEL: ${{ inputs.GEMINI_MODEL }}
         EXCLUDE: ${{ inputs.EXCLUDE }}
+        SYSTEM_PROMPT: ${{ inputs.SYSTEM_PROMPT }}
       run: python ${{ github.action_path }}/review_code_gemini.py

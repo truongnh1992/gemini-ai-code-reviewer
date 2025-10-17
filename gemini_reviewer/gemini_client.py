@@ -289,14 +289,28 @@ class GeminiClient:
         """Clean the response text from common formatting issues."""
         cleaned = response_text.strip()
         
-        # Remove markdown code block markers
+        # Remove markdown code block markers (handle various formats)
+        # Handle ```json at the start
         if cleaned.startswith('```json'):
-            cleaned = cleaned[7:]
+            cleaned = cleaned[7:].lstrip()
+        # Handle ```JSON (uppercase)
+        elif cleaned.startswith('```JSON'):
+            cleaned = cleaned[7:].lstrip()
+        # Handle ``` followed by newline
+        elif cleaned.startswith('```\n'):
+            cleaned = cleaned[4:]
+        # Handle ``` followed by any whitespace
         elif cleaned.startswith('```'):
-            cleaned = cleaned[3:]
+            # Find the end of the opening marker (could be ```json\n or just ```\n)
+            first_newline = cleaned.find('\n')
+            if first_newline != -1:
+                cleaned = cleaned[first_newline + 1:]
+            else:
+                cleaned = cleaned[3:].lstrip()
         
+        # Remove closing ``` markers
         if cleaned.endswith('```'):
-            cleaned = cleaned[:-3]
+            cleaned = cleaned[:-3].rstrip()
         
         return cleaned.strip()
     

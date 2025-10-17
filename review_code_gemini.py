@@ -58,35 +58,53 @@ def validate_environment() -> bool:
         print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
         return False
     
-    # Validate event name
+    # Validate event name - support both pull_request and issue_comment
     event_name = os.environ.get("GITHUB_EVENT_NAME", "")
-    if event_name != "issue_comment":
-        print(f"Error: Unsupported GitHub event: {event_name}. Only 'issue_comment' is supported.")
+    supported_events = ["pull_request", "issue_comment"]
+    if event_name not in supported_events:
+        print(f"Error: Unsupported GitHub event: {event_name}. Supported events: {', '.join(supported_events)}")
         return False
     
     return True
 
 
-def check_if_comment_trigger() -> bool:
-    """Check if this was triggered by a comment with the review command."""
+def check_if_valid_trigger() -> bool:
+    """Check if this is a valid trigger event (pull_request or issue_comment with /gemini-review)."""
     import json
     
     try:
+        event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+        
         with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
             event_data = json.load(f)
         
-        # Check if it's a comment on a PR
-        if not event_data.get("issue", {}).get("pull_request"):
-            print("Info: Comment was not on a pull request, skipping review.")
-            return False
+        # Handle pull_request events
+        if event_name == "pull_request":
+            # For pull_request events, check if it's opened, synchronize (updated), or reopened
+            action = event_data.get("action", "")
+            if action in ["opened", "synchronize", "reopened"]:
+                print(f"Info: Pull request {action}, triggering code review.")
+                return True
+            else:
+                print(f"Info: Pull request action '{action}' does not trigger review. Only 'opened', 'synchronize', and 'reopened' trigger reviews.")
+                return False
         
-        # Check if comment contains the review trigger
-        comment_body = event_data.get("comment", {}).get("body", "").lower()
-        if "/gemini-review" not in comment_body:
-            print("Info: Comment does not contain '/gemini-review' trigger, skipping review.")
-            return False
+        # Handle issue_comment events (legacy support)
+        elif event_name == "issue_comment":
+            # Check if it's a comment on a PR
+            if not event_data.get("issue", {}).get("pull_request"):
+                print("Info: Comment was not on a pull request, skipping review.")
+                return False
+            
+            # Check if comment contains the review trigger
+            comment_body = event_data.get("comment", {}).get("body", "").lower()
+            if "/gemini-review" not in comment_body:
+                print("Info: Comment does not contain '/gemini-review' trigger, skipping review.")
+                return False
+            
+            return True
         
-        return True
+        return False
         
     except Exception as e:
         print(f"Error: Could not process GitHub event data: {e}")
@@ -102,7 +120,7 @@ async def main_async() -> int:
         return 1
     
     # Check if this is a valid trigger
-    if not check_if_comment_trigger():
+    if not check_if_valid_trigger():
         return 0  # Not an error, just not our trigger
     
     try:

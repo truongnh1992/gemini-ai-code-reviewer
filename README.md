@@ -24,6 +24,62 @@ A GitHub Action that automatically reviews pull requests using Google's Gemini A
 
 3. Create a `.github/workflows/code-review.yml` file in your repository and add the following content:
 
+### Option 1: Automatic Review on Pull Request Events (Recommended)
+
+This configuration automatically triggers code review when a PR is opened, updated, or reopened:
+
+```yaml
+name: AI Code Reviewer
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  gemini-code-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR Info
+        run: |
+          echo "PR Number: ${{ github.event.pull_request.number }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Head SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "Base SHA: ${{ github.event.pull_request.base.sha }}"
+
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get PR Details
+        id: pr
+        run: |
+          echo "head_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          echo "base_sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+
+      - uses: Thomasbehan/gemini-ai-code-reviewer@main
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: gemini-2.5-pro # Optional, default is `gemini-2.5-flash`
+          EXCLUDE: "*.md,*.txt,package-lock.json,*.yml,*.yaml"
+          SYSTEM_PROMPT: | # Optional: Custom system prompt for code reviews
+            Review the code with the following guidelines:
+            - Focus on security vulnerabilities and potential bugs
+            - Check for proper error handling
+            - Ensure code follows best practices
+            - Verify performance considerations
+```
+
+### Option 2: Manual Trigger via Comment
+
+This configuration requires manual triggering by commenting `/gemini-review` on a pull request:
+
 ```yaml
 name: Gemini AI Code Reviewer
 
@@ -60,7 +116,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: truongnh1992/gemini-ai-code-reviewer@main
+      - uses: Thomasbehan/gemini-ai-code-reviewer@main
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -101,8 +157,11 @@ jobs:
       Do not comment on minor style issues.
     ```
 
-4. Commit codes to your repository, and working on your pull requests.
-5. When you're ready to review the PR, you can trigger the workflow by commenting `/gemini-review` in the PR.
+4. Commit the workflow file to your repository.
+
+5. Usage depends on which option you chose:
+   - **Option 1 (Automatic)**: The code review will automatically run when you open, update, or reopen a pull request to the configured branch.
+   - **Option 2 (Manual)**: Comment `/gemini-review` on any pull request to trigger the code review.
 
 ## How It Works
 

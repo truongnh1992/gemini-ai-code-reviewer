@@ -324,9 +324,11 @@ class CodeReviewer:
             filtered_comments = self._filter_comments_by_priority(comments)
             
             # Determine review event based on whether there are comments
+            # Note: Using COMMENT instead of APPROVE because GitHub Actions tokens
+            # are not permitted to approve pull requests (GitHub API restriction)
             if not filtered_comments:
-                logger.info("No comments to report - approving PR")
-                event = "APPROVE"
+                logger.info("No comments to report - posting positive review")
+                event = "COMMENT"
             else:
                 logger.info(f"Found {len(filtered_comments)} comments - requesting changes")
                 event = "REQUEST_CHANGES"
@@ -337,7 +339,7 @@ class CodeReviewer:
                 if filtered_comments:
                     logger.info("✅ Successfully created GitHub review with change requests")
                 else:
-                    logger.info("✅ Successfully approved PR with no issues found")
+                    logger.info("✅ Successfully posted positive review with no issues found")
             
             return success
             

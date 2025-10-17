@@ -67,8 +67,8 @@ class GeminiConfig:
     api_key: str
     model_name: str = "gemini-2.5-flash"
     max_output_tokens: int = 8192
-    temperature: float = 0.8
-    top_p: float = 0.95
+    temperature: float = 0.0  # Lower temperature for more precise, deterministic code reviews
+    top_p: float = 0.9  # Slightly lower for more focused output
     timeout: int = 60
     max_retries: int = 3
     retry_delay_min: int = 4
@@ -192,8 +192,8 @@ class Config:
         gemini_config = GeminiConfig(
             api_key=gemini_api_key,
             model_name=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
-            temperature=float(os.environ.get("GEMINI_TEMPERATURE", "0.8")),
-            top_p=float(os.environ.get("GEMINI_TOP_P", "0.95")),
+            temperature=float(os.environ.get("GEMINI_TEMPERATURE", "0.2")),  # Lower for precise code reviews
+            top_p=float(os.environ.get("GEMINI_TOP_P", "0.9")),  # Lower for more focused output
             max_output_tokens=int(os.environ.get("GEMINI_MAX_TOKENS", "8192"))
         )
         

@@ -139,6 +139,7 @@ jobs:
 ### Optional Parameters
 - **GEMINI_MODEL**: The Gemini model to use for code review (default: `gemini-2.5-flash`)
   - `gemini-2.5-flash` is a next-generation model offering speed and multimodal generation capabilities. It's suitable for a wide variety of tasks, including code generation, data extraction, and text editing.
+  - `gemini-2.5-pro` offers enhanced capabilities with longer context windows and better reasoning for complex code reviews.
   - For detailed information about available models, refer to [Gemini models](https://ai.google.dev/gemini-api/docs/models/gemini).
   
 - **EXCLUDE**: Comma-separated list of file patterns to exclude from review (e.g., `*.md,*.txt,package-lock.json`)
@@ -156,6 +157,24 @@ jobs:
       4. Proper error handling
       Do not comment on minor style issues.
     ```
+
+### AI Model Precision Settings
+
+The action is configured for **maximum precision and deterministic output** to provide consistent, focused code reviews:
+
+- **Temperature**: `0.2` (default) - Lower temperature produces more precise, deterministic responses. The model focuses on the most likely correct answers rather than exploring creative alternatives.
+- **Top P**: `0.9` (default) - Slightly lower nucleus sampling for more focused output.
+- **Max Output Tokens**: `8192` - Fully utilizes Gemini 2.5's output capacity for comprehensive reviews.
+
+These settings can be overridden via environment variables if you need different behavior:
+```yaml
+env:
+  GEMINI_TEMPERATURE: "0.2"  # Range: 0.0 (deterministic) to 2.0 (creative)
+  GEMINI_TOP_P: "0.9"        # Range: 0.0 to 1.0
+  GEMINI_MAX_TOKENS: "8192"  # Maximum output tokens
+```
+
+**Why these settings?** Code reviews require precision and consistency. Lower temperature ensures the AI focuses on identifying real issues rather than generating creative but potentially irrelevant suggestions.
 
 4. Commit the workflow file to your repository.
 

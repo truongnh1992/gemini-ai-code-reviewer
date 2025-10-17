@@ -205,9 +205,26 @@ class GeminiClient:
     def _parse_ai_response(self, response_text: str) -> List[AIResponse]:
         """Parse AI response and validate the structure."""
         try:
+            # Log raw response details for debugging
+            logger.debug(f"Raw response length: {len(response_text)} characters")
+            logger.debug(f"Raw response preview: {response_text[:200]}...")
+            
+            # Check if response is empty or whitespace-only
+            if not response_text or not response_text.strip():
+                logger.error("Received empty or whitespace-only response from Gemini API")
+                logger.debug(f"Raw response repr: {repr(response_text[:100])}")
+                return []
+            
             # Clean the response text
             cleaned_response = self._clean_response_text(response_text)
+            logger.debug(f"Cleaned response length: {len(cleaned_response)} characters")
             logger.debug(f"Cleaned response preview: {cleaned_response[:200]}...")
+            
+            # Validate cleaned response is not empty
+            if not cleaned_response or not cleaned_response.strip():
+                logger.error("Cleaned response is empty after removing markdown formatting")
+                logger.error(f"Raw response was: {response_text[:500]}...")
+                return []
             
             # Parse JSON
             data = json.loads(cleaned_response)
@@ -234,10 +251,13 @@ class GeminiClient:
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {str(e)}")
-            logger.debug(f"Raw response: {response_text[:1000]}...")
+            logger.error(f"Raw response length: {len(response_text)}")
+            logger.error(f"Raw response preview: {response_text[:500]}...")
+            logger.error(f"Cleaned response preview: {cleaned_response[:500] if 'cleaned_response' in locals() else 'N/A'}...")
             return []
         except Exception as e:
             logger.error(f"Error parsing AI response: {str(e)}")
+            logger.debug(f"Raw response: {response_text[:1000]}...")
             return []
     
     def _parse_single_review(self, review: Dict[str, Any]) -> Optional[AIResponse]:

@@ -252,11 +252,19 @@ class GitHubClient:
                 review_body = self._generate_approval_message()
             
             # Create the review
-            review = pr.create_review(
-                body=review_body,
-                comments=github_comments if github_comments else None,
-                event=event
-            )
+            # Note: When there are no comments, we don't pass the comments parameter at all
+            # as passing None or empty list with certain events can cause API errors
+            if github_comments:
+                review = pr.create_review(
+                    body=review_body,
+                    comments=github_comments,
+                    event=event
+                )
+            else:
+                review = pr.create_review(
+                    body=review_body,
+                    event=event
+                )
             
             logger.info(f"✅ Review created successfully with ID: {review.id}")
             return True

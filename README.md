@@ -170,7 +170,9 @@ This GitHub Action uses the Gemini AI API to provide code review feedback. It wo
 1. **Analyzing the changes**: It grabs the code modifications from your pull request and filters out any files you don't want reviewed.
 2. **Consulting the Gemini model**: It sends chunks of the modified code to the Gemini for analysis.
 3. **Providing feedback**: Gemini AI examines the code and generates review comments.
-4. **Delivering the review**: The Action adds the comments directly to your pull request on GitHub.
+4. **Delivering the review**: The Action always posts a review on your pull request:
+   - If **no issues are found**, the PR is **approved** with a "Code looks good! 👍" message
+   - If **issues are found**, the review **requests changes** with detailed comments on specific lines
 
 ## License
 

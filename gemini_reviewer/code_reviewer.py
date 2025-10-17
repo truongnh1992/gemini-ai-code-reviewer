@@ -87,13 +87,10 @@ class CodeReviewer:
             
             result.comments = comments
             
-            # Create review on GitHub if we have comments
-            if comments:
-                success = await self._create_github_review(pr_details, comments)
-                if not success:
-                    result.errors.append("Failed to create GitHub review")
-            else:
-                logger.info("No comments generated - code looks good! 👍")
+            # Always create a review on GitHub (approve if no comments, request changes if comments exist)
+            success = await self._create_github_review(pr_details, comments)
+            if not success:
+                result.errors.append("Failed to create GitHub review")
             
             # Finalize statistics
             self.stats.end_time = time.time()
@@ -326,13 +323,21 @@ class CodeReviewer:
             # Filter comments by priority if configured
             filtered_comments = self._filter_comments_by_priority(comments)
             
+            # Determine review event based on whether there are comments
             if not filtered_comments:
-                logger.info("No comments meet priority threshold")
-                return True
+                logger.info("No comments to report - approving PR")
+                event = "APPROVE"
+            else:
+                logger.info(f"Found {len(filtered_comments)} comments - requesting changes")
+                event = "REQUEST_CHANGES"
             
-            success = self.github_client.create_review(pr_details, filtered_comments)
+            # Always create a review, even if there are no comments
+            success = self.github_client.create_review(pr_details, filtered_comments, event)
             if success:
-                logger.info("✅ Successfully created GitHub review")
+                if filtered_comments:
+                    logger.info("✅ Successfully created GitHub review with change requests")
+                else:
+                    logger.info("✅ Successfully approved PR with no issues found")
             
             return success
             

@@ -254,6 +254,9 @@ class CodeReviewer:
         # Get prompt template based on configuration
         prompt_template = self.config.get_review_prompt_template()
         
+        # Track cumulative position in the diff for proper GitHub positioning
+        cumulative_position = 0
+        
         # Analyze each hunk in the file
         for hunk_index, hunk in enumerate(diff_file.hunks):
             try:
@@ -269,16 +272,23 @@ class CodeReviewer:
                 # Convert AI responses to review comments
                 for ai_response in ai_responses:
                     comment = self._convert_to_review_comment(
-                        ai_response, diff_file, hunk, hunk_index
+                        ai_response, diff_file, hunk, hunk_index, cumulative_position
                     )
                     if comment:
                         file_comments.append(comment)
                 
+                # Update cumulative position for next hunk
+                cumulative_position += len(hunk.lines)
+                
             except GeminiClientError as e:
                 logger.warning(f"AI analysis failed for hunk {hunk_index+1} in {file_path}: {str(e)}")
+                # Still update cumulative position even if hunk analysis failed
+                cumulative_position += len(hunk.lines)
                 continue
             except Exception as e:
                 logger.error(f"Unexpected error analyzing hunk in {file_path}: {str(e)}")
+                # Still update cumulative position even if hunk analysis failed
+                cumulative_position += len(hunk.lines)
                 continue
         
         logger.debug(f"Generated {len(file_comments)} comments for {file_path}")
@@ -289,19 +299,40 @@ class CodeReviewer:
         ai_response,
         diff_file: DiffFile,
         hunk: HunkInfo,
-        hunk_index: int
+        hunk_index: int,
+        cumulative_position: int
     ) -> Optional[ReviewComment]:
         """Convert AI response to GitHub review comment."""
         try:
-            # Calculate the position in the diff for GitHub API
-            # This is a simplified calculation - in a real implementation,
-            # you'd need to properly map line numbers to diff positions
-            position = ai_response.line_number
+            # The AI returns a line_number relative to the hunk (1-based)
+            # We need to convert this to an absolute position in the diff (1-based)
+            # GitHub's position is the line number in the diff, counting from the start of the file's diff
             
-            # Ensure position is within hunk bounds
-            if position < 1 or position > len(hunk.lines):
-                logger.warning(f"Line number {position} is outside hunk range")
+            line_number_in_hunk = ai_response.line_number
+            
+            # Ensure line number is within hunk bounds
+            if line_number_in_hunk < 1 or line_number_in_hunk > len(hunk.lines):
+                logger.warning(f"Line number {line_number_in_hunk} is outside hunk range (1-{len(hunk.lines)})")
                 return None
+            
+            # Calculate the absolute position in the diff
+            # cumulative_position is the number of lines before this hunk
+            # ai_response.line_number is 1-based within the hunk
+            position = cumulative_position + line_number_in_hunk
+            
+            # Validate the line is an added or modified line (starts with '+' or ' ')
+            # GitHub only allows comments on lines that are in the new version of the file
+            hunk_line = hunk.lines[line_number_in_hunk - 1]  # Convert to 0-based index
+            if hunk_line.startswith('-'):
+                logger.warning(f"Cannot comment on deleted line (position {position})")
+                # Try to find the next added or context line
+                for i in range(line_number_in_hunk, len(hunk.lines) + 1):
+                    if i <= len(hunk.lines) and not hunk.lines[i - 1].startswith('-'):
+                        position = cumulative_position + i
+                        logger.info(f"Adjusted position to {position} for deleted line")
+                        break
+                else:
+                    return None
             
             comment = ReviewComment(
                 body=ai_response.review_comment,
@@ -312,6 +343,7 @@ class CodeReviewer:
                 category=ai_response.category
             )
             
+            logger.debug(f"Created comment at position {position} (hunk line {line_number_in_hunk}, cumulative {cumulative_position})")
             return comment
             
         except Exception as e:

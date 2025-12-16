@@ -272,10 +272,10 @@ class GitHubClient:
                 logger.warning(f"Invalid position {comment.position} in comment")
                 return None
             
-            # Sanitize content
+            # Sanitize content (preserve markdown in body, but sanitize path)
             sanitized_comment = {
-                'body': self._sanitize_input(str(comment.body)),
-                'path': self._sanitize_input(str(comment.path)),
+                'body': self._sanitize_input(str(comment.body), preserve_markdown=True),
+                'path': self._sanitize_input(str(comment.path), preserve_markdown=False),
                 'position': comment.position
             }
             
@@ -304,21 +304,27 @@ class GitHubClient:
         return "\n".join(summary_parts)
     
     @staticmethod
-    def _sanitize_input(text: str) -> str:
+    def _sanitize_input(text: str, preserve_markdown: bool = False) -> str:
         """Sanitize user input to prevent injection attacks."""
         if not isinstance(text, str):
             return str(text) if text is not None else ""
         
-        import html
-        # HTML escape to prevent XSS
-        sanitized = html.escape(text)
-        
-        # Remove potential command injection characters
-        dangerous_chars = ['`', '$', '$(', '${', '|', '&&', '||', ';', '&']
-        for char in dangerous_chars:
-            sanitized = sanitized.replace(char, '')
-        
-        return sanitized.strip()
+        if preserve_markdown:
+            # For markdown content (like comment bodies), only remove dangerous control characters
+            # Don't HTML escape as it breaks markdown formatting in GitHub
+            sanitized = ''.join(char for char in text if ord(char) >= 32 or char in '\t\n\r')
+            return sanitized.strip()
+        else:
+            import html
+            # HTML escape to prevent XSS (only for non-markdown fields like paths)
+            sanitized = html.escape(text)
+            
+            # Remove potential command injection characters
+            dangerous_chars = ['`', '$', '$(', '${', '|', '&&', '||', ';', '&']
+            for char in dangerous_chars:
+                sanitized = sanitized.replace(char, '')
+            
+            return sanitized.strip()
     
     def get_repository_info(self, owner: str, repo: str) -> Dict[str, Any]:
         """Get repository information."""

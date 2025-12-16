@@ -262,8 +262,8 @@ class GeminiClient:
                 logger.warning(f"Invalid line number format: {review.get('lineNumber')}")
                 return None
             
-            # Get and sanitize comment
-            comment = self._sanitize_text(str(review["reviewComment"]))
+            # Get and sanitize comment (preserve markdown formatting)
+            comment = self._sanitize_text(str(review["reviewComment"]), preserve_markdown=True)
             if not comment or len(comment.strip()) == 0:
                 logger.warning("Empty review comment")
                 return None
@@ -342,21 +342,27 @@ class GeminiClient:
         return language_mapping.get(file_extension.lower(), 'Unknown')
     
     @staticmethod
-    def _sanitize_text(text: str) -> str:
+    def _sanitize_text(text: str, preserve_markdown: bool = False) -> str:
         """Sanitize text input to prevent injection attacks."""
         if not isinstance(text, str):
             return str(text) if text is not None else ""
         
-        import html
-        # HTML escape to prevent XSS
-        sanitized = html.escape(text)
-        
-        # Remove potential command injection characters
-        dangerous_chars = ['`', '$', '$(', '${', '|', '&&', '||', ';', '&']
-        for char in dangerous_chars:
-            sanitized = sanitized.replace(char, '')
-        
-        return sanitized.strip()
+        if preserve_markdown:
+            # For markdown content, only remove dangerous control characters
+            # Don't HTML escape as it breaks markdown formatting
+            sanitized = ''.join(char for char in text if ord(char) >= 32 or char in '\t\n\r')
+            return sanitized.strip()
+        else:
+            import html
+            # HTML escape to prevent XSS (only for non-markdown fields)
+            sanitized = html.escape(text)
+            
+            # Remove potential command injection characters
+            dangerous_chars = ['`', '$', '$(', '${', '|', '&&', '||', ';', '&']
+            for char in dangerous_chars:
+                sanitized = sanitized.replace(char, '')
+            
+            return sanitized.strip()
     
     @staticmethod
     def _sanitize_code_content(content: str) -> str:
